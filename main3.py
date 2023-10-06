@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
-from models import get_model3  # Assuming you have defined your model in a separate 'models' module
+from models import UNet3  # Assuming you have defined your model in a separate 'models' module
 from constants import image_shape
 from data_loading import list_beatmap_files_from_ds, process_path3
 from plotting import plot_signed_distance_field, plot_prediction
@@ -14,7 +14,7 @@ transform = transforms.Compose([transforms.ToTensor()])
 labeled_ds = list_beatmap_files_from_ds().skip(0).interleave(process_path3, cycle_length=1).shuffle(1000).batch(batch_size, drop_last=True)
 
 # Build model
-model = get_model3(image_shape, 4)
+model = UNet3(image_shape, 4)
 print(model)
 
 # Define loss function and optimizer
