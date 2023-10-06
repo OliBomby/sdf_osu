@@ -1,29 +1,29 @@
-import math
+import torch
 import pathlib
 import glob
 import json
-
-import tensorflow as tf
+import math
 import numpy as np
 from slider.beatmap import Beatmap, HitObject, Slider
 from datetime import timedelta
 from plotting import plot_signed_distance_field
-from constants import data_root, coordinates_flat, coordinates, playfield_width_num, playfield_height_num, max_sdf_distance, image_shape
+from constants import data_root, coordinates_flat, coordinates, playfield_width_num, playfield_height_num, \
+    max_sdf_distance, image_shape
 
-empty_pos_tensor = tf.constant(0, shape=(0, 2))
-empty_sdf_array = np.full(image_shape, max_sdf_distance, dtype=np.float32)
+empty_pos_tensor = torch.zeros((0, 2), dtype=torch.float32)
+empty_sdf_array = torch.full(image_shape, max_sdf_distance, dtype=torch.float32)
 
 
 def list_beatmap_files_from_ds():
-    return tf.data.Dataset.list_files(str(data_root / '*/beatmaps/*'))
+    return torch.utils.data.Dataset.list_files(str(data_root / '*/beatmaps/*'))
 
 
 def list_beatmap_files_from_ds_with_sr(min_sr, max_sr):
-    return tf.data.Dataset.from_generator(
+    return torch.utils.data.Dataset.from_generator(
         generator_beatmap_files_from_ds_with_sr,
         args=[min_sr, max_sr],
         output_signature=(
-            tf.TensorSpec((), tf.string)
+            torch.TensorSpec(()),
         )
     )
 
@@ -42,9 +42,10 @@ def generator_beatmap_files_from_ds_with_sr(min_sr, max_sr):
 
 def get_data(ho: HitObject):
     if isinstance(ho, Slider):
-        return ho.end_time, tf.reshape(tf.constant(np.array([ho.curve(t) for t in np.linspace(0, 1, 50)], dtype=np.float32), dtype=tf.float32), (-1, 2))
+        return ho.end_time, torch.reshape(
+            torch.tensor([ho.curve(t) for t in np.linspace(0, 1, 50)], dtype=torch.float32), (-1, 2))
 
-    return ho.time, tf.reshape(tf.constant(ho.position, dtype=tf.float32), (1, 2))
+    return ho.time, torch.tensor(ho.position, dtype=torch.float32).reshape(1, 2)
 
 
 def get_hit_object_radius(circle_size):
@@ -69,25 +70,25 @@ def read_and_process_beatmap(file_path):
 
         buffer.append(current_data)
 
-        yield tf.concat([data[1] for data in buffer], axis=0), \
-            radius,\
+        yield torch.cat([data[1] for data in buffer], dim=0), \
+            radius, \
             next_data[1]
 
 
 def process_path(file_path):
-    ds_positions = tf.data.Dataset.from_generator(
+    ds_positions = torch.utils.data.Dataset.from_generator(
         read_and_process_beatmap,
         args=[file_path],
-        output_signature=(tf.TensorSpec((None, 2), tf.float32),
-                          tf.TensorSpec((), tf.float32),
-                          tf.TensorSpec((None, 2), tf.float32),
+        output_signature=(torch.TensorSpec((None, 2), torch.float32),
+                          torch.TensorSpec(()),
+                          torch.TensorSpec((None, 2), torch.float32),
                           )
     )
     return ds_positions
 
 
 def batch_to_images(geometries, radii, next_positions):
-    return tf.vectorized_map(to_images_vectorizable, (geometries, radii, next_positions), False)
+    return torch.vectorized_map(to_images_vectorizable, (geometries, radii, next_positions), False)
 
 
 def to_images_vectorizable(arg):
@@ -98,11 +99,11 @@ def to_images_vectorizable(arg):
 def to_images(geometry, radius, next_positions):
     sdf = geometry_to_sdf(geometry, radius)
     label_index = get_coord_index(next_positions[0])
-    return tf.expand_dims(sdf, 2), label_index
+    return torch.unsqueeze(sdf, 2), label_index
 
 
 def get_coord_index(pos):
-    return tf.argmin(tf.reduce_sum(tf.square(coordinates_flat - pos), axis=-1))
+    return torch.argmin(torch.sum(torch.square(coordinates_flat - pos), dim=-1))
 
 
 def geometry_to_sdf(geometry, radius):
@@ -112,21 +113,21 @@ def geometry_to_sdf(geometry, radius):
     :param radius: Scalar representing the radius of the geometry
     :return: The SDF
     """
-    return tf.minimum(
-        tf.sqrt(
-            tf.reduce_min(
-                tf.reduce_sum(
-                    tf.square(
-                        tf.tile(
-                            tf.reshape(
+    return torch.minimum(
+        torch.sqrt(
+            torch.reduce_min(
+                torch.reduce_sum(
+                    torch.square(
+                        torch.tile(
+                            torch.reshape(
                                 geometry,
                                 (1, 1, -1, 2)
                             ),
                             (playfield_height_num, playfield_width_num, 1, 1)
                         ) - coordinates),
-                    axis=-1
+                    dim=-1
                 ),
-                axis=-1
+                dim=-1
             )
         ) / radius - 1,
         max_sdf_distance
@@ -162,36 +163,36 @@ def read_and_process_beatmap2(file_path):
             buffer_to_point_tensor(buffers[1]), \
             buffer_to_point_tensor(buffers[2]), \
             buffer_to_point_tensor(buffers[3]), \
-            radius,\
+            radius, \
             next_data[1]
 
 
 def buffer_to_point_tensor(buffer):
-    return tf.concat([data[1] for data in buffer], axis=0) if len(buffer) > 0 else empty_pos_tensor
+    return torch.cat([data[1] for data in buffer], dim=0) if len(buffer) > 0 else empty_pos_tensor
 
 
 def process_path2(file_path):
-    ds_positions = tf.data.Dataset.from_generator(
+    ds_positions = torch.utils.data.Dataset.from_generator(
         read_and_process_beatmap2,
         args=[file_path],
-        output_signature=(tf.TensorSpec((None, 2), tf.float32),
-                          tf.TensorSpec((None, 2), tf.float32),
-                          tf.TensorSpec((None, 2), tf.float32),
-                          tf.TensorSpec((None, 2), tf.float32),
-                          tf.TensorSpec((), tf.float32),
-                          tf.TensorSpec((None, 2), tf.float32),
+        output_signature=(torch.TensorSpec((None, 2), torch.float32),
+                          torch.TensorSpec((None, 2), torch.float32),
+                          torch.TensorSpec((None, 2), torch.float32),
+                          torch.TensorSpec((None, 2), torch.float32),
+                          torch.TensorSpec(()),
+                          torch.TensorSpec((None, 2), torch.float32),
                           )
     )
     return ds_positions
 
 
 def to_images2(g1, g2, g3, g4, radius, next_positions):
-    sdf = tf.stack((
+    sdf = torch.stack((
         geometry_to_sdf(g1, radius),
         geometry_to_sdf(g2, radius),
         geometry_to_sdf(g3, radius),
         geometry_to_sdf(g4, radius),
-    ), axis=2)
+    ), dim=2)
     label_index = get_coord_index(next_positions[0])
     return sdf, label_index
 
@@ -231,7 +232,9 @@ def read_and_process_beatmap3(file_path):
         time_since_last_emb = get_timestep_embedding(time_since_last)
 
         if time_since_last <= 93.75:  # 160 BPM stream
-            yield (buffers_to_sdf_tensor([[(0, last_pos_sdf)], [(0, last_last_pos_sdf)]] + buffers), time_since_last_emb, last_time_since_last_emb), label
+            yield (
+            buffers_to_sdf_tensor([[(0, last_pos_sdf)], [(0, last_last_pos_sdf)]] + buffers), time_since_last_emb,
+            last_time_since_last_emb), label
 
         buffers[0].append((end_time, sdf))
         last_time_since_last_emb = time_since_last_emb
@@ -290,28 +293,30 @@ def get_timestep_embedding(timestep, dim=64, max_period=10000):
 
 
 def buffers_to_sdf_tensor(buffers):
-    return np.stack([(np.min(np.stack([data[1] for data in buffer], axis=-1), axis=-1) if len(buffer) > 0 else empty_sdf_array) for buffer in buffers], axis=-1)
+    return np.stack(
+        [(np.min(np.stack([data[1] for data in buffer], axis=-1), axis=-1) if len(buffer) > 0 else empty_sdf_array) for
+         buffer in buffers], axis=-1)
 
 
 def process_path3(file_path):
-    ds_positions = tf.data.Dataset.from_generator(
+    ds_positions = torch.utils.data.Dataset.from_generator(
         read_and_process_beatmap3,
         args=[file_path],
         output_signature=(
             (
-                tf.TensorSpec(image_shape + (4,), tf.float32),
-                tf.TensorSpec(64, tf.float32),
-                tf.TensorSpec(64, tf.float32),
+                torch.TensorSpec(image_shape + (4,), torch.float32),
+                torch.TensorSpec(64, torch.float32),
+                torch.TensorSpec(64, torch.float32),
             ),
-            tf.TensorSpec((), tf.int32),
+            torch.TensorSpec((), torch.int32),
         )
     )
     return ds_positions
 
 
 if __name__ == "__main__":
-    ds = list_beatmap_files_from_ds_with_sr(5, 15)\
-       .interleave(process_path3, cycle_length=16, num_parallel_calls=16) \
+    ds = list_beatmap_files_from_ds_with_sr(5, 15) \
+        .interleave(process_path3, cycle_length=16, num_parallel_calls=16)
 
     # for f in ds.skip(200).take(1):
     #     print(f[0][0].shape, f[0][1], f[0][2], f[1])
@@ -319,6 +324,7 @@ if __name__ == "__main__":
     #         plot_signed_distance_field(f[0][0][:, :, g].numpy())
 
     import time
+
     count = 0
     start = None
     for f in ds:
