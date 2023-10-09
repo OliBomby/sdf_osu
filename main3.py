@@ -5,7 +5,7 @@ import torch.optim as optim
 from torchvision import transforms
 from models import UNet3  # Assuming you have defined your model in a separate 'models' module
 from constants import image_shape
-from data_loading import list_beatmap_files_from_ds, process_path3
+from data_loading_sdf import list_beatmap_files_from_ds, process_path3
 from plotting import plot_signed_distance_field, plot_prediction
 
 # Create training dataset
