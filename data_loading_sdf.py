@@ -314,7 +314,7 @@ def process_path3(file_path):
     return ds_positions
 
 
-if __name__ == "__main__":
+def main(args):
     ds = list_beatmap_files_from_ds_with_sr(5, 15) \
         .interleave(process_path3, cycle_length=16, num_parallel_calls=16)
 
@@ -332,3 +332,11 @@ if __name__ == "__main__":
             start = time.time()
         count += 1
         print(f"\r{count}, {count / (time.time() - start)} per second", end='')
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-path", type=str, required=True)
+    args = parser.parse_args()
+    main(args)

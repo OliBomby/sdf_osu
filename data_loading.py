@@ -446,20 +446,20 @@ def get_processed_data_loader(
     return dataloader
 
 
-if __name__ == "__main__":
+def main(args):
     # batch_size = 256
     # num_workers = 4
     batch_size = 1
     num_workers = 0
     dataloader = get_processed_data_loader(
-        dataset_path="D:\\Osu! Dingen\\Beatmap ML Datasets\\ORS16291",
+        dataset_path=args.data_path,
         start=0,
         end=16291,
         seq_len=128,
         stride=16,
         cycle_length=1,
-        batch_size=batch_size,
-        num_workers=num_workers,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
         shuffle=False,
         pin_memory=False,
         drop_last=True,
@@ -467,31 +467,43 @@ if __name__ == "__main__":
         win_func=window_and_relative_time,
     )
 
-    import matplotlib.pyplot as plt
+    if args.mode == "plot first":
+        import matplotlib.pyplot as plt
 
-    for (x, o, c), y in dataloader:
-        x = torch.swapaxes(x, 1, 2)  # (N, T, C)
-        c = torch.swapaxes(c, 1, 2)  # (N, T, E)
-        print(x.shape, o.shape, c.shape, y.shape)
-        batch_pos_emb = position_sequence_embedding(x * playfield_size, 128)
-        print(batch_pos_emb.shape)
-        batch_offset_emb = offset_sequence_embedding(o / 10, 128)
-        print(batch_offset_emb.shape)
-        print(y)
+        for (x, o, c), y in dataloader:
+            x = torch.swapaxes(x, 1, 2)  # (N, T, C)
+            c = torch.swapaxes(c, 1, 2)  # (N, T, E)
+            print(x.shape, o.shape, c.shape, y.shape)
+            batch_pos_emb = position_sequence_embedding(x * playfield_size, 128)
+            print(batch_pos_emb.shape)
+            batch_offset_emb = offset_sequence_embedding(o / 10, 128)
+            print(batch_offset_emb.shape)
+            print(y)
 
-        for j in range(batch_size):
-            fig, axs = plt.subplots(3, figsize=(5, 20))
-            axs[0].imshow(batch_pos_emb[j])
-            axs[1].imshow(batch_offset_emb[j])
-            axs[2].imshow(c[j])
-            print(y[j])
-            plt.show()
-        break
+            for j in range(batch_size):
+                fig, axs = plt.subplots(3, figsize=(5, 20))
+                axs[0].imshow(batch_pos_emb[j])
+                axs[1].imshow(batch_offset_emb[j])
+                axs[2].imshow(c[j])
+                print(y[j])
+                plt.show()
+            break
+    elif args.mode == "benchmark":
+        import time
+        import tqdm
+        count = 0
+        start = time.time()
+        for f in tqdm.tqdm(dataloader, total=76200, smoothing=0.01):
+            count += 1
+            # print(f"\r{count}, {count / (time.time() - start)} per second, beatmap index {torch.max(f[1])}", end='')
 
-    # import time
-    # import tqdm
-    # count = 0
-    # start = time.time()
-    # for f in tqdm.tqdm(dataloader, total=76200, smoothing=0.01):
-    #     count += 1
-    #     # print(f"\r{count}, {count / (time.time() - start)} per second, beatmap index {torch.max(f[1])}", end='')
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-path", type=str, required=True)
+    parser.add_argument("--mode", type=str, required=True)
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--num_workers", type=int, default=0)
+    args = parser.parse_args()
+    main(args)

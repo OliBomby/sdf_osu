@@ -1,7 +1,6 @@
 import torch
 import pathlib
 
-data_root = pathlib.Path("/media/data/Osu! Dingen/Beatmap ML Datasets/ORS10548")
 max_sdf_distance = 20
 playfield_width = 512
 playfield_height = 384
