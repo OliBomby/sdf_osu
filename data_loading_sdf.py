@@ -1,43 +1,20 @@
-import torch
 import pathlib
 import glob
 import json
 import math
 import numpy as np
-from slider.beatmap import Beatmap, HitObject, Slider
 from datetime import timedelta
-from plotting import plot_signed_distance_field
-from constants import data_root, coordinates_flat, coordinates, playfield_width_num, playfield_height_num, \
+
+import torch
+from torch.utils.data import DataLoader
+from torch.utils.data import IterableDataset
+
+from slider.beatmap import Beatmap, HitObject, Slider
+from constants import coordinates_flat, coordinates, playfield_width_num, playfield_height_num, \
     max_sdf_distance, image_shape
 
 empty_pos_tensor = torch.zeros((0, 2), dtype=torch.float32)
 empty_sdf_array = torch.full(image_shape, max_sdf_distance, dtype=torch.float32)
-
-
-def list_beatmap_files_from_ds():
-    return torch.utils.data.Dataset.list_files(str(data_root / '*/beatmaps/*'))
-
-
-def list_beatmap_files_from_ds_with_sr(min_sr, max_sr):
-    return torch.utils.data.Dataset.from_generator(
-        generator_beatmap_files_from_ds_with_sr,
-        args=[min_sr, max_sr],
-        output_signature=(
-            torch.TensorSpec(()),
-        )
-    )
-
-
-def generator_beatmap_files_from_ds_with_sr(min_sr, max_sr):
-    for metadata_path in glob.glob(str(data_root / '*/metadata.json')):
-        metadata_path = pathlib.Path(metadata_path)
-        with open(metadata_path, 'r') as file:
-            metadata = json.load(file)
-
-        for name, beatmap_metadata in metadata["Beatmaps"].items():
-            if not (min_sr <= beatmap_metadata["StandardStarRating"]["0"] <= max_sr):
-                continue
-            yield str(metadata_path.parent / "beatmaps" / (name + ".osu"))
 
 
 def get_data(ho: HitObject):
@@ -314,10 +291,52 @@ def process_path3(file_path):
     return ds_positions
 
 
+def get_sdf_data_loader(
+        dataset_path: str,
+        start: int,
+        end: int,
+        seq_len: int,
+        stride: int = 1,
+        cycle_length=1,
+        batch_size: int = 1,
+        num_workers: int = 0,
+        shuffle: bool = False,
+        pin_memory: bool = False,
+        drop_last: bool = False,
+        subset_ids: list[int] | None = None,
+) -> DataLoader:
+    dataset = BeatmapDataset(
+        dataset_path=dataset_path,
+        start=start,
+        end=end,
+        iterable_fn=lambda beatmap_files: BeatmapDatasetIterable(
+            beatmap_files=beatmap_files,
+            seq_len=seq_len,
+            stride=stride,
+            seq_func=seq_func,
+            win_func=win_func,
+        ),
+        cycle_length=cycle_length,
+        shuffle=shuffle,
+        subset_ids=subset_ids,
+    )
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        worker_init_fn=worker_init_fn,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        drop_last=drop_last,
+    )
+
+    return dataloader
+
+
 def main(args):
     ds = list_beatmap_files_from_ds_with_sr(5, 15) \
         .interleave(process_path3, cycle_length=16, num_parallel_calls=16)
 
+    # from plotting import plot_signed_distance_field
     # for f in ds.skip(200).take(1):
     #     print(f[0][0].shape, f[0][1], f[0][2], f[1])
     #     for g in range(f[0][0].shape[2]):

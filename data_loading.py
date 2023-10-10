@@ -153,20 +153,11 @@ def calc_distances(seq: torch.Tensor) -> torch.Tensor:
 
 def split_and_process_sequence(
         seq: torch.Tensor,
-) -> tuple[tuple[torch.Tensor, torch.Tensor, torch.Tensor], int]:
-    seq_d = calc_distances(seq)
-    # Augment and normalize positions for diffusion
-    seq_x = random_flip(seq[:2, :]) / playfield_size.unsqueeze(1)
-    seq_o = seq[2, :]
-    seq_c = torch.concatenate(
-        [
-            timestep_embedding(seq_d, 128).T,
-            seq[3:, :],
-        ],
-        0,
-    )
+) -> tuple[torch.Tensor, int]:
+    # Augment positions with random flip
+    seq_aug = random_flip(seq)
 
-    return (seq_x, seq_o, seq_c), seq.shape[1]
+    return seq_aug, seq.shape[1]
 
 
 def load_and_process_beatmap(beatmap: Beatmap):
@@ -175,14 +166,11 @@ def load_and_process_beatmap(beatmap: Beatmap):
 
 
 def window_and_relative_time(seq, s, e):
-    seq_x, seq_o, seq_c = seq
-    x = seq_x[:, s:e]
-    # Obscure the absolute time by normalizing to zero and adding a random offset between zero and the max period
-    # We do this to make sure the offset embedding utilizes the full range of values, which is also the case when sampling the model
-    o = seq_o[s:e] - seq_o[s] + random.random() * 100000
-    c = seq_c[:, s:e]
+    window = seq[:, s:e]
+    # Obscure the absolute time by normalizing to zero
+    window[2] -= window[2, 0]
 
-    return x, o, c
+    return window
 
 
 class BeatmapDatasetIterable:
@@ -384,7 +372,7 @@ def get_beatmap_idx(name) -> dict[int, int]:
     return beatmap_idx
 
 
-def get_processed_data_loader(
+def get_tabular_data_loader(
         dataset_path: str,
         start: int,
         end: int,
@@ -432,7 +420,7 @@ def main(args):
     # num_workers = 4
     batch_size = 1
     num_workers = 0
-    dataloader = get_processed_data_loader(
+    dataloader = get_tabular_data_loader(
         dataset_path=args.data_path,
         start=0,
         end=16291,
