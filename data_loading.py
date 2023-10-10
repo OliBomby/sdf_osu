@@ -49,10 +49,10 @@ def repeat_type(repeat: int) -> int:
 
 
 def append_control_points(
-    datapoints: list[torch.Tensor],
-    slider: Slider,
-    datatype: int,
-    duration: timedelta,
+        datapoints: list[torch.Tensor],
+        slider: Slider,
+        datatype: int,
+        duration: timedelta,
 ):
     control_point_count = len(slider.curve.points)
 
@@ -152,7 +152,7 @@ def calc_distances(seq: torch.Tensor) -> torch.Tensor:
 
 
 def split_and_process_sequence(
-    seq: torch.Tensor,
+        seq: torch.Tensor,
 ) -> tuple[tuple[torch.Tensor, torch.Tensor, torch.Tensor], int]:
     seq_d = calc_distances(seq)
     # Augment and normalize positions for diffusion
@@ -201,12 +201,12 @@ class BeatmapDatasetIterable:
     )
 
     def __init__(
-        self,
-        beatmap_files: list[str],
-        seq_len: int,
-        stride: int,
-        seq_func: Optional[Callable] = None,
-        win_func: Optional[Callable] = None,
+            self,
+            beatmap_files: list[str],
+            seq_len: int,
+            stride: int,
+            seq_func: Optional[Callable] = None,
+            win_func: Optional[Callable] = None,
     ):
         self.beatmap_files = beatmap_files
         self.seq_len = seq_len
@@ -226,8 +226,8 @@ class BeatmapDatasetIterable:
 
     def __next__(self) -> tuple[any, int]:
         while (
-            self.current_seq is None
-            or self.seq_index + self.seq_len > self.current_seq_len
+                self.current_seq is None
+                or self.seq_index + self.seq_len > self.current_seq_len
         ):
             if self.index >= len(self.beatmap_files):
                 raise StopIteration
@@ -255,24 +255,17 @@ class InterleavingBeatmapDatasetIterable:
     __slots__ = ("workers", "cycle_length", "index")
 
     def __init__(
-        self,
-        beatmap_files: list[str],
-        seq_len: int,
-        stride: int,
-        cycle_length: int,
-        seq_func: Optional[Callable] = None,
-        win_func: Optional[Callable] = None,
+            self,
+            beatmap_files: list[str],
+            iterable_fn: Callable,
+            cycle_length: int,
     ):
         per_worker = int(math.ceil(len(beatmap_files) / float(cycle_length)))
         self.workers = [
-            BeatmapDatasetIterable(
+            iterable_fn(
                 beatmap_files[
-                    i * per_worker : min(len(beatmap_files), (i + 1) * per_worker)
-                ],
-                seq_len,
-                stride,
-                seq_func,
-                win_func,
+                    i * per_worker: min(len(beatmap_files), (i + 1) * per_worker)
+                ]
             )
             for i in range(cycle_length)
         ]
@@ -297,29 +290,23 @@ class InterleavingBeatmapDatasetIterable:
 
 class BeatmapDataset(IterableDataset):
     def __init__(
-        self,
-        dataset_path: str,
-        start: int,
-        end: int,
-        seq_len: int,
-        stride: int = 1,
-        cycle_length: int = 1,
-        shuffle: bool = False,
-        subset_ids: list[int] | None = None,
-        seq_func: Optional[Callable] = None,
-        win_func: Optional[Callable] = None,
+            self,
+            dataset_path: str,
+            start: int,
+            end: int,
+            iterable_fn: Callable,
+            cycle_length: int = 1,
+            shuffle: bool = False,
+            subset_ids: list[int] | None = None,
     ):
         super(BeatmapDataset).__init__()
         self.dataset_path = dataset_path
         self.start = start
         self.end = end
-        self.seq_len = seq_len
-        self.stride = stride
+        self.iterable_fn = iterable_fn
         self.cycle_length = cycle_length
         self.shuffle = shuffle
         self.subset_ids = subset_ids
-        self.seq_func = seq_func
-        self.win_func = win_func
 
     def _get_beatmap_files(self) -> list[str]:
         # Get a list of all beatmap files in the dataset path in the track index range between start and end
@@ -327,12 +314,12 @@ class BeatmapDataset(IterableDataset):
         track_names = ["Track" + str(i).zfill(5) for i in range(self.start, self.end)]
         for track_name in track_names:
             if self.subset_ids is not None:
-                metadata_File = os.path.join(
+                metadata_file = os.path.join(
                     self.dataset_path,
                     track_name,
                     "metadata.json",
                 )
-                with open(metadata_File) as f:
+                with open(metadata_file) as f:
                     metadata = json.load(f)
                 for beatmap_name in metadata["Beatmaps"]:
                     beatmap_metadata = metadata["Beatmaps"][beatmap_name]
@@ -347,7 +334,7 @@ class BeatmapDataset(IterableDataset):
                         )
             else:
                 for beatmap_file in os.listdir(
-                    os.path.join(self.dataset_path, track_name, "beatmaps"),
+                        os.path.join(self.dataset_path, track_name, "beatmaps"),
                 ):
                     beatmap_files.append(
                         os.path.join(
@@ -369,20 +356,11 @@ class BeatmapDataset(IterableDataset):
         if self.cycle_length > 1:
             return InterleavingBeatmapDatasetIterable(
                 beatmap_files,
-                self.seq_len,
-                self.stride,
+                self.iterable_fn,
                 self.cycle_length,
-                self.seq_func,
-                self.win_func,
             )
 
-        return BeatmapDatasetIterable(
-            beatmap_files,
-            self.seq_len,
-            self.stride,
-            self.seq_func,
-            self.win_func,
-        )
+        return self.iterable_fn(beatmap_files)
 
 
 # Define a `worker_init_fn` that configures each dataset copy differently
@@ -407,32 +385,35 @@ def get_beatmap_idx(name) -> dict[int, int]:
 
 
 def get_processed_data_loader(
-    dataset_path: str,
-    start: int,
-    end: int,
-    seq_len: int,
-    stride: int = 1,
-    cycle_length=1,
-    batch_size: int = 1,
-    num_workers: int = 0,
-    shuffle: bool = False,
-    pin_memory: bool = False,
-    drop_last: bool = False,
-    subset_ids: list[int] | None = None,
-    seq_func: Optional[Callable] = None,
-    win_func: Optional[Callable] = None,
+        dataset_path: str,
+        start: int,
+        end: int,
+        seq_len: int,
+        stride: int = 1,
+        cycle_length=1,
+        batch_size: int = 1,
+        num_workers: int = 0,
+        shuffle: bool = False,
+        pin_memory: bool = False,
+        drop_last: bool = False,
+        subset_ids: list[int] | None = None,
+        seq_func: Optional[Callable] = None,
+        win_func: Optional[Callable] = None,
 ) -> DataLoader:
     dataset = BeatmapDataset(
         dataset_path=dataset_path,
         start=start,
         end=end,
-        seq_len=seq_len,
-        stride=stride,
+        iterable_fn=lambda beatmap_files: BeatmapDatasetIterable(
+            beatmap_files=beatmap_files,
+            seq_len=seq_len,
+            stride=stride,
+            seq_func=seq_func,
+            win_func=win_func,
+        ),
         cycle_length=cycle_length,
         shuffle=shuffle,
         subset_ids=subset_ids,
-        seq_func=seq_func,
-        win_func=win_func,
     )
     dataloader = DataLoader(
         dataset,
@@ -500,6 +481,7 @@ def main(args):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-path", type=str, required=True)
     parser.add_argument("--mode", type=str, required=True)
