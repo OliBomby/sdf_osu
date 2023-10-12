@@ -273,7 +273,7 @@ class BeatmapDataset(IterableDataset):
             iterable_factory: Callable,
             cycle_length: int = 1,
             shuffle: bool = False,
-            subset_ids: list[int] | None = None,
+            beatmap_files: Optional[list[str]] = None,
     ):
         super(BeatmapDataset).__init__()
         self.dataset_path = dataset_path
@@ -282,44 +282,27 @@ class BeatmapDataset(IterableDataset):
         self.iterable_factory = iterable_factory
         self.cycle_length = cycle_length
         self.shuffle = shuffle
-        self.subset_ids = subset_ids
+        self.beatmap_files = beatmap_files
 
     def _get_beatmap_files(self) -> list[str]:
+        if self.beatmap_files is not None:
+            return self.beatmap_files
+
         # Get a list of all beatmap files in the dataset path in the track index range between start and end
         beatmap_files = []
         track_names = ["Track" + str(i).zfill(5) for i in range(self.start, self.end)]
         for track_name in track_names:
-            if self.subset_ids is not None:
-                metadata_file = os.path.join(
-                    self.dataset_path,
-                    track_name,
-                    "metadata.json",
+            for beatmap_file in os.listdir(
+                    os.path.join(self.dataset_path, track_name, "beatmaps"),
+            ):
+                beatmap_files.append(
+                    os.path.join(
+                        self.dataset_path,
+                        track_name,
+                        "beatmaps",
+                        beatmap_file,
+                    ),
                 )
-                with open(metadata_file) as f:
-                    metadata = json.load(f)
-                for beatmap_name in metadata["Beatmaps"]:
-                    beatmap_metadata = metadata["Beatmaps"][beatmap_name]
-                    if beatmap_metadata["BeatmapId"] in self.subset_ids:
-                        beatmap_files.append(
-                            os.path.join(
-                                self.dataset_path,
-                                track_name,
-                                "beatmaps",
-                                beatmap_name + ".osu",
-                            ),
-                        )
-            else:
-                for beatmap_file in os.listdir(
-                        os.path.join(self.dataset_path, track_name, "beatmaps"),
-                ):
-                    beatmap_files.append(
-                        os.path.join(
-                            self.dataset_path,
-                            track_name,
-                            "beatmaps",
-                            beatmap_file,
-                        ),
-                    )
 
         return beatmap_files
 
@@ -353,11 +336,11 @@ def worker_init_fn(worker_id: int) -> None:
     dataset.end = min(dataset.start + per_worker, overall_end)
 
 
-def get_beatmap_idx(name) -> dict[int, int]:
+def get_beatmap_files(name: str) -> list[str]:
     p = Path(__file__).with_name(name)
     with p.open("rb") as f:
-        beatmap_idx = pickle.load(f)
-    return beatmap_idx
+        beatmap_files = pickle.load(f)
+    return beatmap_files
 
 
 class BeatmapDatasetIterableFactory:
@@ -392,7 +375,7 @@ def get_tabular_data_loader(
         shuffle: bool = False,
         pin_memory: bool = False,
         drop_last: bool = False,
-        subset_ids: list[int] | None = None,
+        beatmap_files: Optional[list[str]] = None,
         seq_func: Optional[Callable] = None,
         win_func: Optional[Callable] = None,
 ) -> DataLoader:
@@ -408,7 +391,7 @@ def get_tabular_data_loader(
         ),
         cycle_length=cycle_length,
         shuffle=shuffle,
-        subset_ids=subset_ids,
+        beatmap_files=beatmap_files,
     )
     dataloader = DataLoader(
         dataset,
