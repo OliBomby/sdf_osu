@@ -1,4 +1,3 @@
-import json
 import math
 import os.path
 import pickle
@@ -443,7 +442,7 @@ def main(args):
             break
     elif args.mode == "benchmark":
         import tqdm
-        for f in tqdm.tqdm(dataloader, total=7000, smoothing=0.01):
+        for _ in tqdm.tqdm(dataloader, total=7000, smoothing=0.01):
             pass
 
 
