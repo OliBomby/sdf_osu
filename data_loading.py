@@ -360,7 +360,7 @@ def get_beatmap_idx(name) -> dict[int, int]:
     return beatmap_idx
 
 
-class DatasetIterableFactory:
+class BeatmapDatasetIterableFactory:
     __slots__ = ("seq_len", "stride", "seq_func", "win_func")
 
     def __init__(self, seq_len, stride, seq_func, win_func):
@@ -400,7 +400,7 @@ def get_tabular_data_loader(
         dataset_path=dataset_path,
         start=start,
         end=end,
-        iterable_factory=DatasetIterableFactory(
+        iterable_factory=BeatmapDatasetIterableFactory(
             seq_len=seq_len,
             stride=stride,
             seq_func=seq_func,
