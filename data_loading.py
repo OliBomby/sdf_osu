@@ -375,8 +375,6 @@ def get_tabular_data_loader(
         pin_memory: bool = False,
         drop_last: bool = False,
         beatmap_files: Optional[list[str]] = None,
-        seq_func: Optional[Callable] = None,
-        win_func: Optional[Callable] = None,
 ) -> DataLoader:
     dataset = BeatmapDataset(
         dataset_path=dataset_path,
@@ -385,8 +383,8 @@ def get_tabular_data_loader(
         iterable_factory=BeatmapDatasetIterableFactory(
             seq_len=seq_len,
             stride=stride,
-            seq_func=seq_func,
-            win_func=win_func
+            seq_func=load_and_process_beatmap,
+            win_func=window_and_relative_time
         ),
         cycle_length=cycle_length,
         shuffle=shuffle,
@@ -417,8 +415,6 @@ def main(args):
         shuffle=False,
         pin_memory=False,
         drop_last=True,
-        seq_func=load_and_process_beatmap,
-        win_func=window_and_relative_time,
     )
 
     if args.mode == "plotfirst":
