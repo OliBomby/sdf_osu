@@ -55,10 +55,7 @@ def geometry_to_sdf3(geometry, radius):
 
 def trajectory_to_img(trajectory, next_time, look_back_time):
     img = torch.zeros((playfield_height_num, playfield_width_num), dtype=torch.float32)
-    x_indices = torch.clip(torch.round(trajectory[:, 0] / 4), 0, playfield_width_num - 1).int()
-    y_indices = torch.clip(torch.round(trajectory[:, 1] / 4), 0, playfield_height_num - 1).int()
-    img[y_indices, x_indices] = 1 - (next_time - trajectory[:, 2]) / look_back_time
-    return img
+    return draw_trajectory(img, trajectory, next_time, look_back_time)
 
 
 def draw_trajectory(img, trajectory, next_time, look_back_time):

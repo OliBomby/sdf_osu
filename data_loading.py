@@ -142,9 +142,9 @@ def split_and_process_sequence(
         seq: torch.Tensor,
 ) -> tuple[torch.Tensor, int]:
     # Augment positions with random flip
-    seq_aug = random_flip(seq)
+    # seq_aug = random_flip(seq)
 
-    return seq_aug, seq.shape[0]
+    return seq, seq.shape[0]
 
 
 def load_and_process_beatmap(beatmap: Beatmap):
