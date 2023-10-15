@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from models import UNet3
 from constants import image_shape
-from data_loading_sdf import geometry_to_sdf, get_timestep_embedding, get_coord_index3
+from data_loading_img import geometry_to_sdf, get_timestep_embedding, get_coord_index3
 from plotting import plot_signed_distance_field, plot_prediction
 
 # Define your UNet3 model here (if not already defined)
