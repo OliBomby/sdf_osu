@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+from pytorch_lightning.callbacks import ModelCheckpoint
+
+from data_loading import get_beatmap_files
 from data_loading_img import get_img_data_loader
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
@@ -41,7 +44,7 @@ class OsuModel(pl.LightningModule):
         pred = torch.flatten(logits_mask, start_dim=1)
         loss = self.loss_fn(pred, mask)
 
-        self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log(stage + "_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         return {
             "loss": loss,
@@ -67,24 +70,50 @@ def main(args):
             start=0,
             end=16291,
             look_back_time=5000,
-            cycle_length=1,
+            cycle_length=args.batch_size // 4,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             shuffle=True,
             pin_memory=True,
             drop_last=True,
+            beatmap_files=get_beatmap_files("splits/train_split.pkl", args.data_path)
         )
+    validation_dataloader = get_img_data_loader(
+        dataset_path=args.data_path,
+        start=0,
+        end=16291,
+        look_back_time=5000,
+        cycle_length=1,
+        batch_size=args.batch_size * 2,
+        num_workers=args.num_workers,
+        shuffle=False,
+        pin_memory=True,
+        drop_last=True,
+        beatmap_files=get_beatmap_files("splits/validation_split.pkl", args.data_path)
+    )
 
     # Build model
     model = OsuModel("Unet", "resnet34", in_channels=1, out_classes=1, activation="identity")
 
+    checkpoint_callback = ModelCheckpoint(
+        save_top_k=2,
+        monitor="valid_loss",
+        mode="min",
+        dirpath="saved_models/",
+        filename="test-{epoch:02d}-{valid_loss:.2f}",
+        every_n_train_steps=20000,
+    )
+
     trainer = pl.Trainer(
         max_epochs=5,
+        val_check_interval=10000,
+        callbacks=[checkpoint_callback]
     )
 
     trainer.fit(
         model,
         train_dataloaders=train_dataloader,
+        val_dataloaders=validation_dataloader,
     )
 
 

@@ -336,7 +336,7 @@ def worker_init_fn(worker_id: int) -> None:
 
 
 def get_beatmap_files(name: str, data_path: str) -> list[str]:
-    p = Path(__file__).with_name(name)
+    p = Path(name)
     with p.open("rb") as f:
         relative_beatmap_files = pickle.load(f)
     beatmap_files = [os.path.join(data_path, f) for f in relative_beatmap_files]
