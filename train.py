@@ -38,7 +38,7 @@ class OsuModel(pl.LightningModule):
 
         logits_mask = self.forward(image)
 
-        pred = torch.softmax(torch.flatten(logits_mask, start_dim=1), dim=1)
+        pred = torch.flatten(logits_mask, start_dim=1)
         loss = self.loss_fn(pred, mask)
 
         self.log("loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
