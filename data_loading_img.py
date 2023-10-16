@@ -212,7 +212,7 @@ def get_img_data_loader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=drop_last,
-        persistent_workers=True,
+        persistent_workers=num_workers > 0,
     )
 
     return dataloader
