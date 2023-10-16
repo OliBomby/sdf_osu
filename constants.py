@@ -11,7 +11,7 @@ image_shape = (playfield_height_num, playfield_width_num)
 
 x = torch.linspace(0.0, playfield_width, playfield_width_num)
 y = torch.linspace(0.0, playfield_height, playfield_height_num)
-X, Y = torch.meshgrid(x, y)
+X, Y = torch.meshgrid(x, y, indexing="ij")
 coordinates = torch.cat(
     (
         X.unsqueeze(-1),

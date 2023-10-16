@@ -161,7 +161,7 @@ class ImgBeatmapDatasetIterable:
         self.prev_trajectory = trajectory
         self.ho_index += 1
 
-        return self.prev_img, label
+        return self.prev_img.unsqueeze(0), label
 
 
 class ImgBeatmapDatasetIterableFactory:
