@@ -9,7 +9,7 @@ def plot_signed_distance_field(distance_field, label=None):
     if label is not None:
         one_hot = np.zeros(flat_num)
         one_hot[label] = 1
-        dist_image += 10 * one_hot.reshape(image_shape)
+        dist_image += 2 * one_hot.reshape(image_shape)
 
     plot_heatmap(dist_image, "Signed Distance Field", "Distance / Object Radius")
 
@@ -24,7 +24,7 @@ def plot_heatmap(img, title, y_label):
     fig, ax = plt.subplots()
 
     # Plot the signed distance field
-    im = ax.imshow(img, cmap='coolwarm', interpolation='nearest')
+    im = ax.imshow(img, interpolation='nearest')
 
     # Add a colorbar for reference
     cbar = plt.colorbar(im)

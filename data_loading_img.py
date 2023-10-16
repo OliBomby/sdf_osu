@@ -9,9 +9,10 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 from slider.beatmap import Beatmap, HitObject, Slider
-from constants import coordinates_flat, coordinates, playfield_width_num, playfield_height_num, \
+from constants import coordinates, playfield_width_num, playfield_height_num, \
     max_sdf_distance, image_shape
 from data_loading import BeatmapDataset, worker_init_fn
+from plotting import plot_signed_distance_field
 
 empty_pos_tensor = torch.zeros((0, 2), dtype=torch.float32)
 empty_sdf_array = torch.full(image_shape, max_sdf_distance, dtype=torch.float32)
@@ -19,10 +20,6 @@ empty_sdf_array = torch.full(image_shape, max_sdf_distance, dtype=torch.float32)
 
 def get_hit_object_radius(circle_size):
     return (109 - 9 * circle_size) / 2
-
-
-def get_coord_index3(pos: Tensor):
-    return torch.argmin(torch.sum(torch.square(coordinates_flat - pos), dim=-1))
 
 
 def geometry_to_sdf3(geometry, radius):
@@ -51,6 +48,12 @@ def geometry_to_sdf3(geometry, radius):
         ) / radius - 1,
         max_sdf_distance
     )
+
+
+def get_coord_index3(pos: Tensor):
+    x_index = int(np.clip(np.round(pos[0] / 4), 0, playfield_width_num - 1))
+    y_index = int(np.clip(np.round(pos[1] / 4), 0, playfield_height_num - 1))
+    return y_index * playfield_width_num + x_index
 
 
 def trajectory_to_img(trajectory, next_time, look_back_time):
@@ -149,7 +152,7 @@ class ImgBeatmapDatasetIterable:
         ho = self.hit_objects[self.ho_index]
         trajectory = torch.reshape(torch.tensor(get_trajectory(ho), dtype=torch.float32), (-1, 3))
         first_p = trajectory[0]
-        label = get_coord_index3(first_p[:2])
+        label = get_coord_index3(ho.position)
 
         if self.prev_trajectory is not None:
             # Fade the previous img by the time diff
@@ -209,6 +212,7 @@ def get_img_data_loader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=drop_last,
+        persistent_workers=True,
     )
 
     return dataloader
@@ -238,9 +242,7 @@ def main(args):
             print(y)
 
             for j in range(args.batch_size):
-                fig, axs = plt.subplots(1, figsize=(12, 9))
-                axs.imshow(x[j])
-                print(y[j])
+                plot_signed_distance_field(x[j], y[j])
                 plt.show()
                 time.sleep(1)
 

@@ -3,9 +3,6 @@ import torch.nn as nn
 from data_loading_img import get_img_data_loader
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
-from time import time
-
-from plotting import plot_prediction, plot_signed_distance_field
 
 
 class OsuModel(pl.LightningModule):
@@ -79,7 +76,7 @@ def main(args):
         )
 
     # Build model
-    model = OsuModel("FPN", "resnet34", in_channels=1, out_classes=1)
+    model = OsuModel("Unet", "resnet34", in_channels=1, out_classes=1, activation="identity")
 
     trainer = pl.Trainer(
         max_epochs=5,
