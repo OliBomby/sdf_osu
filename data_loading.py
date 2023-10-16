@@ -335,10 +335,11 @@ def worker_init_fn(worker_id: int) -> None:
     dataset.end = min(dataset.start + per_worker, overall_end)
 
 
-def get_beatmap_files(name: str) -> list[str]:
+def get_beatmap_files(name: str, data_path: str) -> list[str]:
     p = Path(__file__).with_name(name)
     with p.open("rb") as f:
-        beatmap_files = pickle.load(f)
+        relative_beatmap_files = pickle.load(f)
+    beatmap_files = [os.path.join(data_path, f) for f in relative_beatmap_files]
     return beatmap_files
 
 
