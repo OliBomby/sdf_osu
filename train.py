@@ -55,13 +55,13 @@ def main(args):
             start=0,
             end=16291,
             look_back_time=5000,
-            cycle_length=args.batch_size // 4,
+            cycle_length=args.batch_size,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             shuffle=True,
             pin_memory=True,
             drop_last=True,
-            beatmap_files=get_beatmap_files("new_splits/train_split.pkl", args.data_path)
+            beatmap_files=get_beatmap_files("new_splits/train_split.pkl", args.data_path),
         )
     validation_dataloader = get_img_data_loader(
         dataset_path=args.data_path,
@@ -70,11 +70,12 @@ def main(args):
         look_back_time=5000,
         cycle_length=1,
         batch_size=args.batch_size * 2,
-        num_workers=args.num_workers,
+        num_workers=0,
         shuffle=False,
         pin_memory=True,
         drop_last=True,
-        beatmap_files=get_beatmap_files("new_splits/validation_split.pkl", args.data_path)
+        beatmap_files=get_beatmap_files("new_splits/validation_split.pkl", args.data_path),
+        cache_dataset=True,
     )
 
     # Build model

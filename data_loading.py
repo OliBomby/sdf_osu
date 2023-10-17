@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Optional
 
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.data import IterableDataset
+import tqdm
+from torch.utils.data import DataLoader, Dataset, IterableDataset
 
 from slider import Position
 from slider.beatmap import Beatmap
@@ -376,28 +376,81 @@ def get_tabular_data_loader(
         pin_memory: bool = False,
         drop_last: bool = False,
         beatmap_files: Optional[list[str]] = None,
+        cache_dataset: bool = False,
+) -> DataLoader:
+    return get_data_loader(
+        dataset_path=dataset_path,
+        start=start,
+        end=end,
+        iterable_factory=BeatmapDatasetIterableFactory(
+            seq_len,
+            stride,
+            load_and_process_beatmap,
+            window_and_relative_time,
+        ),
+        cycle_length=cycle_length,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=shuffle,
+        pin_memory=pin_memory,
+        drop_last=drop_last,
+        beatmap_files=beatmap_files,
+        cache_dataset=cache_dataset,
+    )
+
+
+class CachedDataset(Dataset):
+    __slots__ = "cached_data"
+
+    def __init__(self, iterable_dataset):
+        self.cached_data = []
+        for datum in tqdm.tqdm(iterable_dataset):
+            self.cached_data.append(datum)
+
+    def __getitem__(self, index):
+        return self.cached_data[index]
+
+    def __len__(self):
+        return len(self.cached_data)
+
+
+def get_data_loader(
+        dataset_path: str,
+        start: int,
+        end: int,
+        iterable_factory: Callable,
+        cycle_length=1,
+        batch_size: int = 1,
+        num_workers: int = 0,
+        shuffle: bool = False,
+        pin_memory: bool = False,
+        drop_last: bool = False,
+        beatmap_files: Optional[list[str]] = None,
+        cache_dataset: bool = False,
 ) -> DataLoader:
     dataset = BeatmapDataset(
         dataset_path=dataset_path,
         start=start,
         end=end,
-        iterable_factory=BeatmapDatasetIterableFactory(
-            seq_len=seq_len,
-            stride=stride,
-            seq_func=load_and_process_beatmap,
-            win_func=window_and_relative_time
-        ),
+        iterable_factory=iterable_factory,
         cycle_length=cycle_length,
         shuffle=shuffle,
         beatmap_files=beatmap_files,
     )
+
+    if cache_dataset:
+        print("Caching dataset...")
+        dataset = CachedDataset(dataset)
+        num_workers = 1
+
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
-        worker_init_fn=worker_init_fn,
+        worker_init_fn=worker_init_fn if not cache_dataset else None,
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=drop_last,
+        persistent_workers=num_workers > 0,
     )
 
     return dataloader

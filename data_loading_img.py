@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from slider.beatmap import Beatmap, HitObject, Slider
 from constants import coordinates, playfield_width_num, playfield_height_num, \
     max_sdf_distance, image_shape
-from data_loading import BeatmapDataset, worker_init_fn
+from data_loading import get_data_loader
 from plotting import plot_signed_distance_field
 
 empty_pos_tensor = torch.zeros((0, 2), dtype=torch.float32)
@@ -193,8 +193,9 @@ def get_img_data_loader(
         pin_memory: bool = False,
         drop_last: bool = False,
         beatmap_files: Optional[list[str]] = None,
+        cache_dataset: bool = False,
 ) -> DataLoader:
-    dataset = BeatmapDataset(
+    return get_data_loader(
         dataset_path=dataset_path,
         start=start,
         end=end,
@@ -202,20 +203,14 @@ def get_img_data_loader(
             look_back_time=look_back_time,
         ),
         cycle_length=cycle_length,
-        shuffle=shuffle,
-        beatmap_files=beatmap_files,
-    )
-    dataloader = DataLoader(
-        dataset,
         batch_size=batch_size,
-        worker_init_fn=worker_init_fn,
         num_workers=num_workers,
+        shuffle=shuffle,
         pin_memory=pin_memory,
         drop_last=drop_last,
-        persistent_workers=num_workers > 0,
+        beatmap_files=beatmap_files,
+        cache_dataset=cache_dataset,
     )
-
-    return dataloader
 
 
 def main(args):
