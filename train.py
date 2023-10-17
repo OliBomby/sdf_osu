@@ -11,13 +11,14 @@ import pytorch_lightning as pl
 
 class OsuModel(pl.LightningModule):
 
-    def __init__(self, arch, encoder_name, in_channels, out_classes, **kwargs):
+    def __init__(self, arch, encoder_name, in_channels, out_classes, lr=0.0001, **kwargs):
         super().__init__()
         self.model = smp.create_model(
             arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
         )
 
         self.loss_fn = nn.CrossEntropyLoss()
+        self.lr = lr
         self.save_hyperparameters()
 
     def forward(self, image):
@@ -45,7 +46,7 @@ class OsuModel(pl.LightningModule):
         return self.shared_step(batch, "test")
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.0001)
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 
 def main(args):
