@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import WandbLogger
 
 from data_loading import get_beatmap_files
 from data_loading_img import get_img_data_loader
@@ -17,34 +18,18 @@ class OsuModel(pl.LightningModule):
         )
 
         self.loss_fn = nn.CrossEntropyLoss()
+        self.save_hyperparameters()
 
     def forward(self, image):
         mask = self.model(image)
         return mask
 
     def shared_step(self, batch, stage):
-        image = batch[0]
-
-        # Shape of the image should be (batch_size, num_channels, height, width)
-        # if you work with grayscale images, expand channels dim to have [batch_size, 1, height, width]
-        assert image.ndim == 4
-
-        # Check that image dimensions are divisible by 32,
-        # encoder and decoder connected by `skip connections` and usually encoder have 5 stages of
-        # downsampling by factor 2 (2 ^ 5 = 32); e.g. if we have image with shape 65x65 we will have
-        # following shapes of features in encoder and decoder: 84, 42, 21, 10, 5 -> 5, 10, 20, 40, 80
-        # and we will get an error trying to concat these features
-        h, w = image.shape[2:]
-        assert h % 32 == 0 and w % 32 == 0
-
-        mask = batch[1]
-
-        logits_mask = self.forward(image)
-
+        logits_mask = self.forward(batch[0])
         pred = torch.flatten(logits_mask, start_dim=1)
-        loss = self.loss_fn(pred, mask)
+        loss = self.loss_fn(pred, batch[1])
 
-        self.log(stage + "_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log(stage + " loss", loss, prog_bar=True)
 
         return {
             "loss": loss,
@@ -76,7 +61,7 @@ def main(args):
             shuffle=True,
             pin_memory=True,
             drop_last=True,
-            beatmap_files=get_beatmap_files("splits/train_split.pkl", args.data_path)
+            beatmap_files=get_beatmap_files("new_splits/train_split.pkl", args.data_path)
         )
     validation_dataloader = get_img_data_loader(
         dataset_path=args.data_path,
@@ -89,25 +74,36 @@ def main(args):
         shuffle=False,
         pin_memory=True,
         drop_last=True,
-        beatmap_files=get_beatmap_files("splits/validation_split.pkl", args.data_path)
+        beatmap_files=get_beatmap_files("new_splits/validation_split.pkl", args.data_path)
     )
 
     # Build model
     model = OsuModel("Unet", "resnet34", in_channels=1, out_classes=1, activation="identity")
 
     checkpoint_callback = ModelCheckpoint(
+        dirpath="saved_models",
         save_top_k=2,
         monitor="valid_loss",
         mode="min",
-        dirpath="saved_models/",
-        filename="test-{epoch:02d}-{valid_loss:.2f}",
+        filename="{step:07d}-{valid_loss:.2f}",
         every_n_train_steps=20000,
     )
+
+    wandb_logger = WandbLogger(
+        project="sdf-osu",
+        log_model=False if args.offline else "all",
+        offline=args.offline
+    )
+
+    # log gradients, parameter histogram and model topology
+    wandb_logger.watch(model, log="all")
 
     trainer = pl.Trainer(
         max_epochs=5,
         val_check_interval=10000,
-        callbacks=[checkpoint_callback]
+        callbacks=[checkpoint_callback],
+        logger=wandb_logger,
+        log_every_n_steps=args.log_every,
     )
 
     trainer.fit(
@@ -126,5 +122,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--log-every", type=int, default=100)
+    parser.add_argument("--offline", type=bool, default=False)
     args = parser.parse_args()
     main(args)

@@ -1,2 +1,4 @@
 /saved_models/*
 /lightning_logs/*
+/wandb/*
+/tb_logs/*
