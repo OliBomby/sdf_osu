@@ -95,7 +95,7 @@ def main(args):
     print(f"Length of test_split: {len(test_files)}")
 
     # Create the 'splits' folder
-    splits_folder = 'splits'
+    splits_folder = args.out_dir
     if not os.path.exists(splits_folder):
         os.makedirs(splits_folder)
 
@@ -121,5 +121,6 @@ if __name__ == "__main__":
     parser.add_argument("--test-end", type=int, required=True)
     parser.add_argument("--validation-count", type=int, required=True)
     parser.add_argument("--min-sr", type=float, default=0)
+    parser.add_argument("--out-dir", type=str, default="splits")
     args = parser.parse_args()
     main(args)
