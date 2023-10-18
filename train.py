@@ -45,8 +45,6 @@ class OsuModel(pl.LightningModule):
 
         self.log(stage + "_loss", loss, prog_bar=True)
 
-        # metric = metric1(pred, batch[1])
-        # self.log(stage + "_metric1", metric, prog_bar=True)
 
         if isinstance(self.logger, WandbLogger) and batch_idx == 0:
             num_img = 16
@@ -56,7 +54,7 @@ class OsuModel(pl.LightningModule):
             combined_images = np.concatenate((prior_images, prediction_images), axis=2)
             split_images = list(np.split(combined_images, num_img, axis=0))
             # noinspection PyUnresolvedReferences
-            self.logger.log_image(key="samples", images=split_images)
+            self.logger.log_image(key=stage + "_samples", images=split_images)
 
         return {
             "loss": loss,
@@ -77,6 +75,12 @@ class OsuModel(pl.LightningModule):
         return self.shared_test_step(batch, "valid", batch_idx)
 
     def test_step(self, batch, batch_idx):
+        logits_mask = self.forward(batch[0])
+        pred = torch.flatten(logits_mask, start_dim=1)
+
+        metric = metric1(pred, batch[1])
+        self.log("test" + "_metric1", metric, prog_bar=True)
+
         return self.shared_test_step(batch, "test", batch_idx)
 
     def configure_optimizers(self):
