@@ -95,7 +95,7 @@ def main(args):
         train_dataloader = get_cached_data_loader(
             data_path=args.cached_train_data,
             batch_size=args.batch_size,
-            num_workers=1,
+            num_workers=0,
             shuffle=True,
             pin_memory=True,
             drop_last=True,
@@ -118,7 +118,7 @@ def main(args):
         validation_dataloader = get_cached_data_loader(
             data_path=args.cached_val_data,
             batch_size=args.batch_size * 2,
-            num_workers=1,
+            num_workers=0,
             shuffle=False,
             pin_memory=True,
             drop_last=True,
