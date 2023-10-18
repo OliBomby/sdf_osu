@@ -4,7 +4,7 @@ import pickle
 import random
 from collections.abc import Callable
 from datetime import timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Optional
 
 import torch
@@ -339,7 +339,7 @@ def get_beatmap_files(name: str, data_path: str) -> list[str]:
     p = Path(name)
     with p.open("rb") as f:
         relative_beatmap_files = pickle.load(f)
-    beatmap_files = [os.path.join(data_path, f) for f in relative_beatmap_files]
+    beatmap_files = [os.path.join(data_path, PureWindowsPath(f)) for f in relative_beatmap_files]
     return beatmap_files
 
 
