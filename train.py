@@ -86,7 +86,7 @@ class OsuModel(pl.LightningModule):
 
 def main(args):
     # Build model
-    model = OsuModel("Unet", "mit_b0", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
+    model = OsuModel(args.arch, args.encoder_name, in_channels=1, out_classes=1, activation="identity", encoder_weights=args.encoder_weights)
 
     # Load splits
     train_split, validation_split, test_split = load_splits(args.splits_dir, args.data_path)
@@ -140,16 +140,24 @@ def main(args):
             beatmap_files=validation_split,
         )
 
-    checkpoint_callback = ModelCheckpoint(
-        dirpath="saved_models",
-        save_top_k=2,
-        monitor="valid_loss",
-        mode="min",
-        # filename="{epoch:02d}-{valid_loss:.2f}",
-        # every_n_epochs=1,
-        filename="{step:07d}-{valid_loss:.2f}",
-        every_n_train_steps=2000,
-    )
+    if args.cached_train_data is None:
+        checkpoint_callback = ModelCheckpoint(
+            dirpath="saved_models",
+            save_top_k=2,
+            monitor="valid_loss",
+            mode="min",
+            filename="{step:07d}-{valid_loss:.2f}",
+            every_n_train_steps=2000,
+        )
+    else:
+        checkpoint_callback = ModelCheckpoint(
+            dirpath="saved_models",
+            save_top_k=2,
+            monitor="valid_loss",
+            mode="min",
+            filename="{epoch:02d}-{valid_loss:.2f}",
+            every_n_epochs=1,
+        )
 
     wandb_logger = WandbLogger(
         project="sdf-osu",
@@ -162,7 +170,7 @@ def main(args):
 
     trainer = pl.Trainer(
         max_epochs=-1,
-        val_check_interval=1000,
+        val_check_interval=1000 if args.cached_train_data is None else None,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
         log_every_n_steps=args.log_every,
@@ -189,5 +197,8 @@ if __name__ == "__main__":
     parser.add_argument("--splits-dir", type=str, default=None)
     parser.add_argument("--cached-train-data", type=str, default=None)
     parser.add_argument("--cached-val-data", type=str, default=None)
+    parser.add_argument("--arch", type=str, default="Unet")
+    parser.add_argument("--encoder-name", type=str, default="mit_b0")
+    parser.add_argument("--encoder_weights", type=str, default=None)
     args = parser.parse_args()
     main(args)
