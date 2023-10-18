@@ -434,7 +434,7 @@ def get_data_loader(
         end=end,
         iterable_factory=iterable_factory,
         cycle_length=cycle_length,
-        shuffle=shuffle,
+        shuffle=shuffle and not cache_dataset,
         beatmap_files=beatmap_files,
     )
 
@@ -451,6 +451,7 @@ def get_data_loader(
         pin_memory=pin_memory,
         drop_last=drop_last,
         persistent_workers=num_workers > 0,
+        shuffle=cache_dataset and shuffle,
     )
 
     return dataloader
