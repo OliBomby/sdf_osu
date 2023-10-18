@@ -193,7 +193,6 @@ def get_img_data_loader(
         pin_memory: bool = False,
         drop_last: bool = False,
         beatmap_files: Optional[list[str]] = None,
-        cache_dataset: bool = False,
 ) -> DataLoader:
     return get_data_loader(
         dataset_path=dataset_path,
@@ -209,7 +208,6 @@ def get_img_data_loader(
         pin_memory=pin_memory,
         drop_last=drop_last,
         beatmap_files=beatmap_files,
-        cache_dataset=cache_dataset,
     )
 
 

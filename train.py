@@ -138,7 +138,6 @@ def main(args):
             pin_memory=True,
             drop_last=True,
             beatmap_files=validation_split,
-            cache_dataset=True,
         )
 
     checkpoint_callback = ModelCheckpoint(
