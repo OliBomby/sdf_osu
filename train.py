@@ -13,6 +13,9 @@ import pytorch_lightning as pl
 from models import MitUnet
 from constants import image_shape
 
+# Faster, but less precise
+torch.set_float32_matmul_precision("high")
+
 
 class OsuModel(pl.LightningModule):
 
@@ -158,6 +161,7 @@ def main(args):
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
         log_every_n_steps=args.log_every,
+        precision="bf16-mixed"
     )
 
     trainer.fit(
