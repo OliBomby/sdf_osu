@@ -144,8 +144,10 @@ def main(args):
         save_top_k=2,
         monitor="valid_loss",
         mode="min",
-        filename="{step:07d}-{valid_loss:.2f}",
-        every_n_train_steps=2000,
+        filename="{epoch:02d}-{valid_loss:.2f}",
+        every_n_epochs=1,
+        # filename="{step:07d}-{valid_loss:.2f}",
+        # every_n_train_steps=2000,
     )
 
     wandb_logger = WandbLogger(
