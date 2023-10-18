@@ -160,7 +160,7 @@ def main(args):
     wandb_logger.watch(model, log="all")
 
     trainer = pl.Trainer(
-        max_epochs=5,
+        max_epochs=-1,
         # val_check_interval=1000,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
