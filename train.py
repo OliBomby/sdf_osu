@@ -10,6 +10,7 @@ from data_loading_img import get_img_data_loader
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
 
+from metrics import circle_accuracy
 from models import MitUnet
 from constants import image_shape
 
@@ -23,7 +24,7 @@ class OsuModel(pl.LightningModule):
         super().__init__()
 
         if arch == "Unet" and encoder_name.startswith("mit_") and in_channels != 3:
-            self.model = MitUnet(encoder_name= encoder_name, in_channels=in_channels, classes=out_classes, **kwargs)
+            self.model = MitUnet(encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs)
         else:
             self.model = smp.create_model(
                 arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
@@ -40,17 +41,18 @@ class OsuModel(pl.LightningModule):
     def shared_test_step(self, batch, stage, batch_idx):
         logits_mask = self.forward(batch[0])
         pred = torch.flatten(logits_mask, start_dim=1)
-        softmax = torch.softmax(pred, dim=1)
+        softmax_pred = torch.softmax(pred, dim=1)
         loss = self.loss_fn(pred, batch[1])
+        metric = circle_accuracy(softmax_pred, batch[1])
 
         self.log(stage + "_loss", loss, prog_bar=True)
-
+        self.log(stage + "_circle_accuracy", metric, prog_bar=True)
 
         if isinstance(self.logger, WandbLogger) and batch_idx == 0:
             num_img = 16
             colormap = plt.get_cmap('viridis')
             prior_images = colormap(batch[0][:num_img].squeeze(1).cpu())
-            prediction_images = colormap(torch.pow(softmax[:num_img].reshape((-1,) + image_shape), 1/4).cpu())
+            prediction_images = colormap(torch.pow(softmax_pred[:num_img].reshape((-1,) + image_shape), 1/4).cpu())
             combined_images = np.concatenate((prior_images, prediction_images), axis=2)
             split_images = list(np.split(combined_images, num_img, axis=0))
             # noinspection PyUnresolvedReferences
@@ -58,6 +60,7 @@ class OsuModel(pl.LightningModule):
 
         return {
             "loss": loss,
+            "circle_accuracy": metric
         }
 
     def training_step(self, batch, batch_idx):
@@ -75,12 +78,6 @@ class OsuModel(pl.LightningModule):
         return self.shared_test_step(batch, "valid", batch_idx)
 
     def test_step(self, batch, batch_idx):
-        logits_mask = self.forward(batch[0])
-        pred = torch.flatten(logits_mask, start_dim=1)
-
-        metric = metric1(pred, batch[1])
-        self.log("test" + "_metric1", metric, prog_bar=True)
-
         return self.shared_test_step(batch, "test", batch_idx)
 
     def configure_optimizers(self):
@@ -117,7 +114,8 @@ def main(args):
             pin_memory=True,
             drop_last=True,
             beatmap_files=train_split,
-    )
+        )
+
     if args.cached_val_data is not None:
         validation_dataloader = get_cached_data_loader(
             data_path=args.cached_val_data,
@@ -148,10 +146,10 @@ def main(args):
         save_top_k=2,
         monitor="valid_loss",
         mode="min",
-        filename="{epoch:02d}-{valid_loss:.2f}",
-        every_n_epochs=1,
-        # filename="{step:07d}-{valid_loss:.2f}",
-        # every_n_train_steps=2000,
+        # filename="{epoch:02d}-{valid_loss:.2f}",
+        # every_n_epochs=1,
+        filename="{step:07d}-{valid_loss:.2f}",
+        every_n_train_steps=2000,
     )
 
     wandb_logger = WandbLogger(
@@ -165,7 +163,7 @@ def main(args):
 
     trainer = pl.Trainer(
         max_epochs=-1,
-        # val_check_interval=1000,
+        val_check_interval=1000,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
         log_every_n_steps=args.log_every,

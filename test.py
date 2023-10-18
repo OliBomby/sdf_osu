@@ -1,34 +1,23 @@
-import numpy as np
-import torch
-import torch.nn as nn
-from matplotlib import pyplot as plt
-from pytorch_lightning.callbacks import ModelCheckpoint
+import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 
 from data_loading import load_splits, get_cached_data_loader
 from data_loading_img import get_img_data_loader
-import segmentation_models_pytorch as smp
-import pytorch_lightning as pl
-
-from models import MitUnet
-from constants import image_shape
-from metrics import metric1
-
 from train import OsuModel
 
 
 def main(args):
     # Build model
-    model = pl.LightningModule.load_from_checkpoint(args.ckpt)
+    model = OsuModel("Unet", "mit_b0", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
 
     # Load splits
     _, _, test_split = load_splits(args.splits_dir, args.data_path)
 
     if args.cached_test_data is not None:
         test_dataloader = get_cached_data_loader(
-            data_path=args.cached_val_data,
-            batch_size=args.batch_size * 2,
-            num_workers=1,
+            data_path=args.cached_test_data,
+            batch_size=args.batch_size,
+            num_workers=0,
             shuffle=False,
             pin_memory=True,
             drop_last=True,
@@ -40,8 +29,8 @@ def main(args):
             end=16291,
             look_back_time=5000,
             cycle_length=1,
-            batch_size=args.batch_size * 2,
-            num_workers=0,
+            batch_size=args.batch_size,
+            num_workers=args.num_workers,
             shuffle=False,
             pin_memory=True,
             drop_last=True,
@@ -51,16 +40,17 @@ def main(args):
 
     wandb_logger = WandbLogger(
         project="sdf-osu",
-        log_model=False if args.offline else "all",
-        offline=args.offline
+        offline=args.offline,
     )
 
-    # log gradients, parameter histogram and model topology
-    wandb_logger.watch(model, log="all")
+    trainer = pl.Trainer(
+        logger=wandb_logger,
+    )
 
-    pl.Trainer.test(
+    trainer.test(
         model,
         dataloaders=test_dataloader,
+        ckpt_path=args.ckpt,
     )
 
 

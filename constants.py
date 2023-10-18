@@ -19,4 +19,5 @@ coordinates = torch.cat(
     ),
     dim=-1,
 ).reshape(playfield_height_num, playfield_width_num, 1, 2)
+# coordinates_flat (torch.Tensor): The mapping from flat indices to 2D coordinates
 coordinates_flat = coordinates.reshape(flat_num, 2)
