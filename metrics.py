@@ -2,7 +2,7 @@ from constants import coordinates_flat
 import torch
 
 
-def metric1(pred, ground_truth_indices, radius = 3):
+def metric1(pred, ground_truth_indices, radius=3):
     """
     Calculate the sum of softmax predictions within a circle centered at the ground truth pixel.
 
