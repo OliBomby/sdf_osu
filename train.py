@@ -163,7 +163,6 @@ def main(args):
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
         log_every_n_steps=args.log_every,
-        precision="bf16-mixed"
     )
 
     trainer.fit(
