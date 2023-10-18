@@ -42,8 +42,8 @@ class OsuModel(pl.LightningModule):
 
         self.log(stage + "_loss", loss, prog_bar=True)
 
-        metric = metric1(pred, batch[1])
-        self.log(stage + "_metric1", metric, prog_bar=True)
+        # metric = metric1(pred, batch[1])
+        # self.log(stage + "_metric1", metric, prog_bar=True)
 
         if isinstance(self.logger, WandbLogger) and batch_idx == 0:
             num_img = 16
