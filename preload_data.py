@@ -22,11 +22,12 @@ def main(args):
         )
 
     if args.split is not None:
+        os.makedirs(args.out_path, exist_ok=True)
         split = get_beatmap_files(os.path.join(args.split), args.data_path)
         cache_data(split, args.out_path)
         return
 
-    if not os.path.exists(args.out_dir):
+    if not os.path.exists(args.out_dir) and args.out_dir is not None:
         os.makedirs(args.out_dir)
 
     train_split, validation_split, test_split = load_splits(args.splits_dir, args.data_path)
@@ -40,7 +41,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-path", type=str, required=True)
-    parser.add_argument("--out-dir", type=str, required=True)
+    parser.add_argument("--out-dir", type=str, default=None)
     parser.add_argument("--splits-dir", type=str, default=None)
     parser.add_argument("--split", type=str, default=None)
     parser.add_argument("--out-path", type=str, default=None)
