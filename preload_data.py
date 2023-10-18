@@ -21,13 +21,13 @@ def main(args):
             beatmap_files=split,
         )
 
+    if not os.path.exists(args.out_dir) and args.out_dir is not None:
+        os.makedirs(args.out_dir)
+
     if args.split is not None:
         split = get_beatmap_files(os.path.join(args.split), args.data_path)
         cache_data(split, args.filename)
         return
-
-    if not os.path.exists(args.out_dir) and args.out_dir is not None:
-        os.makedirs(args.out_dir)
 
     train_split, validation_split, test_split = load_splits(args.splits_dir, args.data_path)
     cache_data(train_split, "train_data.pt")

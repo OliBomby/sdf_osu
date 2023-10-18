@@ -199,6 +199,6 @@ if __name__ == "__main__":
     parser.add_argument("--cached-val-data", type=str, default=None)
     parser.add_argument("--arch", type=str, default="Unet")
     parser.add_argument("--encoder-name", type=str, default="mit_b0")
-    parser.add_argument("--encoder_weights", type=str, default=None)
+    parser.add_argument("--encoder-weights", type=str, default=None)
     args = parser.parse_args()
     main(args)
