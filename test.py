@@ -35,7 +35,6 @@ def main(args):
             pin_memory=True,
             drop_last=True,
             beatmap_files=test_split,
-            cache_dataset=True,
         )
 
     wandb_logger = WandbLogger(
