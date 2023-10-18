@@ -1,6 +1,11 @@
+from typing import Optional, List, Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from segmentation_models_pytorch.base import SegmentationModel, SegmentationHead
+from segmentation_models_pytorch.decoders.unet.decoder import UnetDecoder
+from segmentation_models_pytorch.encoders import mix_transformer_encoders
 
 
 class DoubleConvBlock(nn.Module):
@@ -102,3 +107,52 @@ class UNet3(nn.Module):
         x = self.softmax(x)
 
         return x
+
+
+encoders = {}
+encoders.update(mix_transformer_encoders)
+
+
+class MitUnet(SegmentationModel):
+    def __init__(
+        self,
+        encoder_name: str = "mit_b0",
+        encoder_depth: int = 5,
+        encoder_weights: Optional[str] = None,
+        decoder_use_batchnorm: bool = True,
+        decoder_channels: List[int] = (256, 128, 64, 32, 16),
+        decoder_attention_type: Optional[str] = None,
+        in_channels: int = 3,
+        classes: int = 1,
+        activation: Optional[Union[str, callable]] = None,
+    ):
+        super().__init__()
+
+        try:
+            Encoder = encoders[encoder_name]["encoder"]
+        except KeyError:
+            raise KeyError("Wrong encoder name `{}`, supported encoders: {}".format(encoder_name, list(encoders.keys())))
+
+        params = encoders[encoder_name]["params"]
+        params.update(depth=encoder_depth)
+        params.update(in_chans=in_channels)
+        self.encoder = Encoder(**params)
+
+        self.decoder = UnetDecoder(
+            encoder_channels=self.encoder.out_channels,
+            decoder_channels=decoder_channels,
+            n_blocks=encoder_depth,
+            use_batchnorm=decoder_use_batchnorm,
+            center=True if encoder_name.startswith("vgg") else False,
+            attention_type=decoder_attention_type,
+        )
+
+        self.segmentation_head = SegmentationHead(
+            in_channels=decoder_channels[-1],
+            out_channels=classes,
+            activation=activation,
+            kernel_size=3,
+        )
+
+        self.name = "u-{}".format(encoder_name)
+        self.initialize()

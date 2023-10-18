@@ -8,14 +8,20 @@ from data_loading_img import get_img_data_loader
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
 
+from models import MitUnet
+
 
 class OsuModel(pl.LightningModule):
 
     def __init__(self, arch, encoder_name, in_channels, out_classes, lr=0.0001, **kwargs):
         super().__init__()
-        self.model = smp.create_model(
-            arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
-        )
+
+        if arch == "Unet" and encoder_name.startswith("mit_") and in_channels != 3:
+            self.model = MitUnet(encoder_name= encoder_name, in_channels=in_channels, classes=out_classes, **kwargs)
+        else:
+            self.model = smp.create_model(
+                arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
+            )
 
         self.loss_fn = nn.CrossEntropyLoss()
         self.lr = lr
@@ -30,7 +36,7 @@ class OsuModel(pl.LightningModule):
         pred = torch.flatten(logits_mask, start_dim=1)
         loss = self.loss_fn(pred, batch[1])
 
-        self.log(stage + " loss", loss, prog_bar=True)
+        self.log(stage + "_loss", loss, prog_bar=True)
 
         return {
             "loss": loss,
@@ -50,6 +56,9 @@ class OsuModel(pl.LightningModule):
 
 
 def main(args):
+    # Build model
+    model = OsuModel("Unet", "mit_b0", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
+
     # Create training dataset
     train_dataloader = get_img_data_loader(
             dataset_path=args.data_path,
@@ -79,16 +88,13 @@ def main(args):
         cache_dataset=True,
     )
 
-    # Build model
-    model = OsuModel("Unet", "resnet34", in_channels=1, out_classes=1, activation="identity")
-
     checkpoint_callback = ModelCheckpoint(
         dirpath="saved_models",
         save_top_k=2,
         monitor="valid_loss",
         mode="min",
         filename="{step:07d}-{valid_loss:.2f}",
-        every_n_train_steps=20000,
+        every_n_train_steps=2000,
     )
 
     wandb_logger = WandbLogger(
@@ -102,7 +108,7 @@ def main(args):
 
     trainer = pl.Trainer(
         max_epochs=5,
-        val_check_interval=10000,
+        val_check_interval=1000,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
         log_every_n_steps=args.log_every,

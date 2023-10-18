@@ -2,3 +2,4 @@
 /lightning_logs/*
 /wandb/*
 /tb_logs/*
+*.ckpt
