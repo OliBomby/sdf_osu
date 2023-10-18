@@ -3,7 +3,7 @@ import torch.nn as nn
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
-from data_loading import get_beatmap_files
+from data_loading import load_splits, get_cached_data_loader
 from data_loading_img import get_img_data_loader
 import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
@@ -57,10 +57,23 @@ class OsuModel(pl.LightningModule):
 
 def main(args):
     # Build model
-    model = OsuModel("Unet", "mit_b0", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
+    model = OsuModel("Unet", "timm-regnetx_002", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
+
+    # Load splits
+    train_split, validation_split, test_split = load_splits(args.splits_dir, args.data_path)
 
     # Create training dataset
-    train_dataloader = get_img_data_loader(
+    if args.cached_train_data is not None:
+        train_dataloader = get_cached_data_loader(
+            data_path=args.cached_train_data,
+            batch_size=args.batch_size,
+            num_workers=1,
+            shuffle=True,
+            pin_memory=True,
+            drop_last=True,
+        )
+    else:
+        train_dataloader = get_img_data_loader(
             dataset_path=args.data_path,
             start=0,
             end=16291,
@@ -71,22 +84,32 @@ def main(args):
             shuffle=True,
             pin_memory=True,
             drop_last=True,
-            beatmap_files=get_beatmap_files("new_splits/train_split.pkl", args.data_path),
-        )
-    validation_dataloader = get_img_data_loader(
-        dataset_path=args.data_path,
-        start=0,
-        end=16291,
-        look_back_time=5000,
-        cycle_length=1,
-        batch_size=args.batch_size * 2,
-        num_workers=0,
-        shuffle=False,
-        pin_memory=True,
-        drop_last=True,
-        beatmap_files=get_beatmap_files("new_splits/validation_split.pkl", args.data_path),
-        cache_dataset=True,
+            beatmap_files=train_split,
     )
+    if args.cached_val_data is not None:
+        validation_dataloader = get_cached_data_loader(
+            data_path=args.cached_val_data,
+            batch_size=args.batch_size * 2,
+            num_workers=1,
+            shuffle=False,
+            pin_memory=True,
+            drop_last=True,
+        )
+    else:
+        validation_dataloader = get_img_data_loader(
+            dataset_path=args.data_path,
+            start=0,
+            end=16291,
+            look_back_time=5000,
+            cycle_length=1,
+            batch_size=args.batch_size * 2,
+            num_workers=0,
+            shuffle=False,
+            pin_memory=True,
+            drop_last=True,
+            beatmap_files=validation_split,
+            cache_dataset=True,
+        )
 
     checkpoint_callback = ModelCheckpoint(
         dirpath="saved_models",
@@ -108,7 +131,7 @@ def main(args):
 
     trainer = pl.Trainer(
         max_epochs=5,
-        val_check_interval=1000,
+        # val_check_interval=1000,
         callbacks=[checkpoint_callback],
         logger=wandb_logger,
         log_every_n_steps=args.log_every,
@@ -131,5 +154,8 @@ if __name__ == "__main__":
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--offline", type=bool, default=False)
+    parser.add_argument("--splits-dir", type=str, default=None)
+    parser.add_argument("--cached-train-data", type=str, default=None)
+    parser.add_argument("--cached-val-data", type=str, default=None)
     args = parser.parse_args()
     main(args)

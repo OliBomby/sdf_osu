@@ -402,16 +402,65 @@ def get_tabular_data_loader(
 class CachedDataset(Dataset):
     __slots__ = "cached_data"
 
-    def __init__(self, iterable_dataset):
-        self.cached_data = []
-        for datum in tqdm.tqdm(iterable_dataset):
-            self.cached_data.append(datum)
+    def __init__(self, cached_data):
+        self.cached_data = cached_data
 
     def __getitem__(self, index):
         return self.cached_data[index]
 
     def __len__(self):
         return len(self.cached_data)
+
+
+def cache_dataset(
+        out_path: str,
+        dataset_path: str,
+        start: int,
+        end: int,
+        iterable_factory: Callable,
+        cycle_length=1,
+        beatmap_files: Optional[list[str]] = None,
+):
+    dataset = BeatmapDataset(
+        dataset_path=dataset_path,
+        start=start,
+        end=end,
+        iterable_factory=iterable_factory,
+        cycle_length=cycle_length,
+        shuffle=False,
+        beatmap_files=beatmap_files,
+    )
+
+    print("Caching dataset...")
+    cached_data = []
+    for datum in tqdm.tqdm(dataset):
+        cached_data.append(datum)
+
+    torch.save(cached_data, out_path)
+
+
+def get_cached_data_loader(
+        data_path: str,
+        batch_size: int = 1,
+        num_workers: int = 0,
+        shuffle: bool = False,
+        pin_memory: bool = False,
+        drop_last: bool = False,
+):
+    cached_data = torch.load(data_path)
+    dataset = CachedDataset(cached_data)
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        drop_last=drop_last,
+        persistent_workers=num_workers > 0,
+        shuffle=shuffle,
+    )
+
+    return dataloader
 
 
 def get_data_loader(
@@ -426,7 +475,6 @@ def get_data_loader(
         pin_memory: bool = False,
         drop_last: bool = False,
         beatmap_files: Optional[list[str]] = None,
-        cache_dataset: bool = False,
 ) -> DataLoader:
     dataset = BeatmapDataset(
         dataset_path=dataset_path,
@@ -434,27 +482,33 @@ def get_data_loader(
         end=end,
         iterable_factory=iterable_factory,
         cycle_length=cycle_length,
-        shuffle=shuffle and not cache_dataset,
+        shuffle=shuffle,
         beatmap_files=beatmap_files,
     )
-
-    if cache_dataset:
-        print("Caching dataset...")
-        dataset = CachedDataset(dataset)
-        num_workers = 1
 
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
-        worker_init_fn=worker_init_fn if not cache_dataset else None,
+        worker_init_fn=worker_init_fn,
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=drop_last,
         persistent_workers=num_workers > 0,
-        shuffle=cache_dataset and shuffle,
     )
 
     return dataloader
+
+
+def load_splits(splits_dir, data_path):
+    train_split = None
+    validation_split = None
+    test_split = None
+    if splits_dir is not None:
+        train_split = get_beatmap_files(os.path.join(splits_dir, "train_split.pkl"), data_path)
+        validation_split = get_beatmap_files(os.path.join(splits_dir, "validation_split.pkl"), data_path)
+        test_split = get_beatmap_files(os.path.join(splits_dir, "test_split.pkl"), data_path)
+
+    return train_split, validation_split, test_split
 
 
 def main(args):

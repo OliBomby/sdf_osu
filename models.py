@@ -3,7 +3,7 @@ from typing import Optional, List, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from segmentation_models_pytorch.base import SegmentationModel, SegmentationHead
+from segmentation_models_pytorch.base import SegmentationModel, SegmentationHead, ClassificationHead
 from segmentation_models_pytorch.decoders.unet.decoder import UnetDecoder
 from segmentation_models_pytorch.encoders import mix_transformer_encoders
 
@@ -125,6 +125,7 @@ class MitUnet(SegmentationModel):
         in_channels: int = 3,
         classes: int = 1,
         activation: Optional[Union[str, callable]] = None,
+        aux_params: Optional[dict] = None,
     ):
         super().__init__()
 
@@ -153,6 +154,11 @@ class MitUnet(SegmentationModel):
             activation=activation,
             kernel_size=3,
         )
+
+        if aux_params is not None:
+            self.classification_head = ClassificationHead(in_channels=self.encoder.out_channels[-1], **aux_params)
+        else:
+            self.classification_head = None
 
         self.name = "u-{}".format(encoder_name)
         self.initialize()

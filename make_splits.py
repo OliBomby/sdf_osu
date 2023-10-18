@@ -82,12 +82,20 @@ def get_beatmap_files(data_path: str, mapset_indices: list[int], min_sr: float =
 
 
 def main(args):
-    validation_set = random.sample(range(args.train_start, args.train_end), args.validation_count)
-    train_set = [i for i in range(args.train_start, args.train_end) if i not in validation_set]
+    all_train_set = list(range(args.train_start, args.train_end))
+    all_train_files = get_beatmap_files(args.data_path, all_train_set, args.min_sr)
 
-    train_files = get_beatmap_files(args.data_path, train_set, args.min_sr)
-    validation_files = get_beatmap_files(args.data_path, validation_set, args.min_sr)
-    test_files = get_beatmap_files(args.data_path, list(range(args.test_start, args.test_end)), args.min_sr)
+    validation_files = random.sample(all_train_files, args.validation_count)
+    train_files = [f for f in all_train_files if f not in validation_files]
+
+    test_set = list(range(args.test_start, args.test_end))
+    test_files = get_beatmap_files(args.data_path, test_set, args.min_sr)
+
+    if args.train_count is not None:
+        train_files = random.sample(train_files, args.train_count)
+
+    if args.test_count is not None:
+        test_files = random.sample(test_files, args.test_count)
 
     # Print the lengths of the lists
     print(f"Length of train_split: {len(train_files)}")
@@ -120,6 +128,8 @@ if __name__ == "__main__":
     parser.add_argument("--test-start", type=int, required=True)
     parser.add_argument("--test-end", type=int, required=True)
     parser.add_argument("--validation-count", type=int, required=True)
+    parser.add_argument("--train-count", type=int, default=None)
+    parser.add_argument("--test-count", type=int, default=None)
     parser.add_argument("--min-sr", type=float, default=0)
     parser.add_argument("--out-dir", type=str, default="splits")
     args = parser.parse_args()
