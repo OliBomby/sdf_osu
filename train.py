@@ -12,7 +12,10 @@ import pytorch_lightning as pl
 
 from models import MitUnet
 from constants import image_shape
-from metrics import metric1
+
+# Faster, but less precise
+torch.set_float32_matmul_precision("high")
+
 
 class OsuModel(pl.LightningModule):
 
@@ -96,7 +99,7 @@ def main(args):
         train_dataloader = get_cached_data_loader(
             data_path=args.cached_train_data,
             batch_size=args.batch_size,
-            num_workers=1,
+            num_workers=0,
             shuffle=True,
             pin_memory=True,
             drop_last=True,
@@ -119,7 +122,7 @@ def main(args):
         validation_dataloader = get_cached_data_loader(
             data_path=args.cached_val_data,
             batch_size=args.batch_size * 2,
-            num_workers=1,
+            num_workers=0,
             shuffle=False,
             pin_memory=True,
             drop_last=True,
@@ -145,8 +148,10 @@ def main(args):
         save_top_k=2,
         monitor="valid_loss",
         mode="min",
-        filename="{step:07d}-{valid_loss:.2f}",
-        every_n_train_steps=2000,
+        filename="{epoch:02d}-{valid_loss:.2f}",
+        every_n_epochs=1,
+        # filename="{step:07d}-{valid_loss:.2f}",
+        # every_n_train_steps=2000,
     )
 
     wandb_logger = WandbLogger(

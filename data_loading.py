@@ -395,7 +395,6 @@ def get_tabular_data_loader(
         pin_memory=pin_memory,
         drop_last=drop_last,
         beatmap_files=beatmap_files,
-        cache_dataset=cache_dataset,
     )
 
 
