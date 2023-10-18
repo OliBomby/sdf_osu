@@ -1,5 +1,7 @@
+import numpy as np
 import torch
 import torch.nn as nn
+from matplotlib import pyplot as plt
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
@@ -9,6 +11,7 @@ import segmentation_models_pytorch as smp
 import pytorch_lightning as pl
 
 from models import MitUnet
+from constants import image_shape
 
 
 class OsuModel(pl.LightningModule):
@@ -31,25 +34,45 @@ class OsuModel(pl.LightningModule):
         mask = self.model(image)
         return mask
 
-    def shared_step(self, batch, stage):
+    def shared_test_step(self, batch, stage, batch_idx):
         logits_mask = self.forward(batch[0])
         pred = torch.flatten(logits_mask, start_dim=1)
+        softmax = torch.softmax(pred, dim=1)
         loss = self.loss_fn(pred, batch[1])
 
         self.log(stage + "_loss", loss, prog_bar=True)
+        # TODO calculate metric
+
+        if isinstance(self.logger, WandbLogger) and batch_idx == 0:
+            num_img = 16
+            colormap = plt.get_cmap('viridis')
+            prior_images = colormap(batch[0][:num_img].squeeze(1).cpu())
+            prediction_images = colormap(torch.pow(softmax[:num_img].reshape((-1,) + image_shape), 1/4).cpu())
+            combined_images = np.concatenate((prior_images, prediction_images), axis=2)
+            split_images = list(np.split(combined_images, num_img, axis=0))
+            # noinspection PyUnresolvedReferences
+            self.logger.log_image(key="samples", images=split_images)
 
         return {
             "loss": loss,
         }
 
     def training_step(self, batch, batch_idx):
-        return self.shared_step(batch, "train")
+        logits_mask = self.forward(batch[0])
+        pred = torch.flatten(logits_mask, start_dim=1)
+        loss = self.loss_fn(pred, batch[1])
+
+        self.log("train_loss", loss, prog_bar=True)
+
+        return {
+            "loss": loss,
+        }
 
     def validation_step(self, batch, batch_idx):
-        return self.shared_step(batch, "valid")
+        return self.shared_test_step(batch, "valid", batch_idx)
 
     def test_step(self, batch, batch_idx):
-        return self.shared_step(batch, "test")
+        return self.shared_test_step(batch, "test", batch_idx)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -57,7 +80,7 @@ class OsuModel(pl.LightningModule):
 
 def main(args):
     # Build model
-    model = OsuModel("Unet", "timm-regnetx_002", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
+    model = OsuModel("Unet", "mit_b0", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
 
     # Load splits
     train_split, validation_split, test_split = load_splits(args.splits_dir, args.data_path)
@@ -141,6 +164,7 @@ def main(args):
         model,
         train_dataloaders=train_dataloader,
         val_dataloaders=validation_dataloader,
+        ckpt_path=args.ckpt,
     )
 
 
