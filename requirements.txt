@@ -4,3 +4,4 @@ numpy
 slider
 segmentation-models-pytorch
 pytorch-lightning
+wandb
