@@ -62,8 +62,8 @@ def trajectory_to_img(trajectory, next_time, look_back_time):
 
 
 def draw_trajectory(img, trajectory, next_time, look_back_time):
-    x_indices = torch.clip(torch.round(trajectory[:, 0] / 4), 0, playfield_width_num - 1).int()
-    y_indices = torch.clip(torch.round(trajectory[:, 1] / 4), 0, playfield_height_num - 1).int()
+    x_indices = torch.clip(torch.round(trajectory[:, 0] / 4), 0, playfield_width_num - 1).long()
+    y_indices = torch.clip(torch.round(trajectory[:, 1] / 4), 0, playfield_height_num - 1).long()
     img[y_indices, x_indices] = 1 - (next_time - trajectory[:, 2]) / look_back_time
     return img
 
