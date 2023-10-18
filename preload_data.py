@@ -20,6 +20,9 @@ def main(args):
             beatmap_files=split,
         )
 
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir)
+
     cache_data(train_split, "train_data.pt")
     cache_data(validation_split, "validation_data.pt")
     cache_data(test_split, "test_data.pt")
