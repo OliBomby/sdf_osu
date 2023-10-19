@@ -84,7 +84,7 @@ class OsuModel(pl.LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def on_load_checkpoint(self, checkpoint):
-        self.optimizers().param_groups[0]['capturable'] = True
+        checkpoint["optimizer_states"][0]["param_groups"][0]['capturable'] = True
 
 
 def main(args):
