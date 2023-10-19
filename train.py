@@ -83,6 +83,9 @@ class OsuModel(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
+    def on_load_checkpoint(self, checkpoint):
+        self.optimizers().param_groups[0]['capturable'] = True
+
 
 def main(args):
     # Build model
