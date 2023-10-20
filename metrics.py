@@ -29,7 +29,7 @@ def circle_accuracy(pred, ground_truth_indices, radius=30):
     return total_probability.mean()
 
 
-def histogram_plot(pred, input, distance_step, max_distance=None):
+def histogram_plot(pred, input, distance_step, cicle_radius, max_distance=None):
     """
     Create a histogram representing the summed values of predictions at various distances
     from the nearest non-zero pixel in the input image.
@@ -67,6 +67,8 @@ def histogram_plot(pred, input, distance_step, max_distance=None):
 
     # Define the bins based on the maximum distance and distance step
     bins = np.arange(0, max_distance + distance_step, distance_step)
+    # Normalize by dividing with circle radius, and then multiplying by 4 to get pixel values on the real map
+    bins_normalized = bins / cicle_radius * 4
 
     # We will calculate the histogram per batch item but sum the results, so the histogram size remains constant
     histogram = np.zeros(len(bins) - 1, dtype=np.float32)
@@ -78,7 +80,7 @@ def histogram_plot(pred, input, distance_step, max_distance=None):
         current_pred = pred_np[i].reshape(-1)
 
         # Calculate the histogram for the current item in the batch
-        hist, _ = np.histogram(current_distances, bins=bins, weights=current_pred)
+        hist, _ = np.histogram(current_distances, bins=bins_normalized, weights=current_pred)
 
         # Add the current histogram to the accumulated histogram
         histogram += hist
