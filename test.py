@@ -8,7 +8,7 @@ from train import OsuModel
 
 def main(args):
     # Build model
-    model = OsuModel("Unet", "mit_b0", in_channels=1, out_classes=1, activation="identity", encoder_weights=None)
+    model = OsuModel.load_from_checkpoint(args.ckpt)
 
     # Load splits
     _, _, test_split = load_splits(args.splits_dir, args.data_path)
@@ -49,7 +49,6 @@ def main(args):
     trainer.test(
         model,
         dataloaders=test_dataloader,
-        ckpt_path=args.ckpt,
     )
 
 
