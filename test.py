@@ -3,7 +3,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 from data_loading import load_splits, get_cached_data_loader
 from data_loading_img import get_img_data_loader
-from train import OsuModel
+from lightning_model import OsuModel
 
 
 def main(args):
