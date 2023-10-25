@@ -80,6 +80,48 @@ class OsuModel(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.shared_test_step(batch, "test", batch_idx)
 
+    def on_test_epoch_end(self, outputs):
+        # we want to aggregate the histograms. We'll start with the first one and then add each other one to it.
+        aggregated_histogram = np.array(outputs[0]['histogram'])  # start with the first histogram
+
+        for output in outputs[1:]:  # iterate over the rest of the outputs
+            current_histogram = np.array(output['histogram'])
+            aggregated_histogram += current_histogram
+
+        # Normalize the histogram
+        total_count = np.sum(aggregated_histogram)  # sum of all bin counts
+
+        # To avoid division by zero, check if total_count is zero
+        if total_count > 0:
+            normalized_histogram = aggregated_histogram / total_count  # normalize each bin count
+        else:
+            # Here, we'll just create a zero-filled histogram of the same shape.
+            normalized_histogram = np.zeros_like(aggregated_histogram)
+
+        # WANDB LOGGING
+
+        # Create a range for the x-axis (bins)
+        xs = list(range(len(normalized_histogram)))
+
+        # Prepare your data for logging
+        ys = [normalized_histogram.tolist()]  # Make sure it's a list of lists
+
+        # Access the underlying wandb run from the logger
+        wandb_run = self.logger.experiment  # This is your wandb run
+
+        # Create a custom wandb plot without directly importing wandb
+        line_plot = wandb_run.plot.line_series(
+            xs=xs,  # Your x-axis data (bins)
+            ys=ys,  # Your y-axis data (normalized histogram counts)
+            keys=["Normalized Histogram"],
+            title="Normalized Histogram over Bins",
+            xname="Bins"
+        )
+
+        # Log the custom plot using the logger's experiment attribute
+        self.logger.experiment.log({"my_custom_id": line_plot})
+
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 

@@ -89,12 +89,12 @@ def histogram_plot(pred, prior, distance_step, cicle_radius, max_distance=None, 
         current_pred = pred_np[i].reshape(-1)
 
         # Calculate the histogram for the current item in the batch
-        hist, _ = np.histogram(current_distances, bins=bins, weights=current_pred, density=True)
+        hist, _ = np.histogram(current_distances, bins=bins, weights=current_pred)
 
         # Add the current histogram to the accumulated histogram
         histogram += hist
 
     # Normalize to get mean histogram density
-    histogram /= num_non_zero
+    # histogram /= num_non_zero
 
     return histogram
