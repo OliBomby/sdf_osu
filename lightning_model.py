@@ -7,7 +7,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch import nn as nn
 
 from constants import image_shape
-from metrics import circle_accuracy
+from metrics import circle_accuracy, histogram_plot
 from models import MitUnet
 
 
@@ -51,10 +51,17 @@ class OsuModel(pl.LightningModule):
             # noinspection PyUnresolvedReferences
             self.logger.log_image(key=stage + "_samples", images=split_images)
 
-        return {
+        result = {
             "loss": loss,
             "circle_accuracy": metric
         }
+
+        if stage == "test":
+            # Calculate visual spacing distribution
+            histogram = histogram_plot(softmax_pred, batch[0], 0.1, batch[2], max_distance=4, min_value=0.6)
+            result["histogram"] = histogram
+
+        return result
 
     def training_step(self, batch, batch_idx):
         logits_mask = self.forward(batch[0])

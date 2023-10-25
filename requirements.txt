@@ -5,3 +5,4 @@ slider
 segmentation-models-pytorch
 pytorch-lightning
 wandb
+scipy
