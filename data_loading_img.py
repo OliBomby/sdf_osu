@@ -112,6 +112,7 @@ class ImgBeatmapDatasetIterable:
         "look_back_time",
         "prev_img",
         "prev_trajectory",
+        "circle_radius",
     )
 
     def __init__(
@@ -127,11 +128,12 @@ class ImgBeatmapDatasetIterable:
         self.ho_index = 0
         self.prev_img = None
         self.prev_trajectory = None
+        self.circle_radius = 1
 
     def __iter__(self) -> "ImgBeatmapDatasetIterable":
         return self
 
-    def __next__(self) -> tuple[Tensor, Tensor]:
+    def __next__(self) -> tuple[Tensor, Tensor, float]:
         while (
                 self.hit_objects is None
                 or self.ho_index >= len(self.hit_objects)
@@ -147,6 +149,7 @@ class ImgBeatmapDatasetIterable:
             self.prev_trajectory = None
             self.prev_img = torch.zeros((playfield_height_num, playfield_width_num), dtype=torch.float32)
             self.ho_index = 0
+            self.circle_radius = get_hit_object_radius(beatmap.circle_size)
             self.index += 1
 
         ho = self.hit_objects[self.ho_index]
@@ -164,7 +167,7 @@ class ImgBeatmapDatasetIterable:
         self.prev_trajectory = trajectory
         self.ho_index += 1
 
-        return self.prev_img.unsqueeze(0), label
+        return self.prev_img.unsqueeze(0), label, self.circle_radius
 
 
 class ImgBeatmapDatasetIterableFactory:
