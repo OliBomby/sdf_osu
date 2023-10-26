@@ -22,7 +22,7 @@ class OsuModel(pl.LightningModule):
             self.model = smp.create_model(
                 arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
             )
-
+        self.test_step_outputs = []
         self.loss_fn = nn.CrossEntropyLoss()
         self.lr = lr
         self.save_hyperparameters()
@@ -78,9 +78,12 @@ class OsuModel(pl.LightningModule):
         return self.shared_test_step(batch, "valid", batch_idx)
 
     def test_step(self, batch, batch_idx):
-        return self.shared_test_step(batch, "test", batch_idx)
+        output = self.shared_test_step(batch, "test", batch_idx)
+        self.test_step_outputs.append(output)
+        return output
 
-    def on_test_epoch_end(self, outputs):
+    def on_test_epoch_end(self):
+        outputs = self.test_step_outputs
         # we want to aggregate the histograms. We'll start with the first one and then add each other one to it.
         aggregated_histogram = np.array(outputs[0]['histogram'])  # start with the first histogram
 
