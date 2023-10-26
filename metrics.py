@@ -29,7 +29,7 @@ def circle_accuracy(pred, ground_truth_indices, radius=30):
     return total_probability.mean()
 
 
-def histogram_plot(pred, prior, distance_step, cicle_radius, max_distance=None, min_value=0):
+def ds_histogram(pred, prior, distance_step, cicle_radius, max_distance=None, min_value=0):
     """
     Create a histogram representing the summed values of predictions at various distances
     from the nearest non-zero pixel in the input image.
@@ -48,23 +48,22 @@ def histogram_plot(pred, prior, distance_step, cicle_radius, max_distance=None, 
     batch_size = pred.shape[0]
 
     # Ensure the input tensor is binary (i.e., consists of 0s and 1s)
-    input_binary = (prior >= min_value).int()
+    prior_binary = (prior >= min_value).int()
 
     # Convert PyTorch tensors to numpy arrays for scipy compatibility
     pred_np = pred.cpu().numpy()
-    input_binary_np = input_binary.cpu().numpy()
+    prior_binary_np = prior_binary.cpu().numpy()
     circle_radius_np = cicle_radius.view(-1, 1, 1, 1).expand(-1, 1, playfield_height_num, playfield_width_num).cpu().numpy()
 
     # Find empty priors to ignore
-    non_zero_inputs = np.any(input_binary_np != 0, axis=(1, 2, 3))
-    num_non_zero = np.count_nonzero(non_zero_inputs)
+    non_zero_inputs = np.any(prior_binary_np != 0, axis=(1, 2, 3))
 
     # Placeholder for the distance transforms
-    distances = np.zeros_like(input_binary_np, dtype=np.float32)
+    distances = np.zeros_like(prior_binary_np, dtype=np.float32)
 
     # Compute the distance transform for each item in the batch separately
     for i in range(batch_size):
-        distances[i] = distance_transform_edt(1 - input_binary_np[i])
+        distances[i] = distance_transform_edt(1 - prior_binary_np[i])
 
     # Normalize to multiples of circle radius
     distances /= circle_radius_np / 4
@@ -93,8 +92,5 @@ def histogram_plot(pred, prior, distance_step, cicle_radius, max_distance=None, 
 
         # Add the current histogram to the accumulated histogram
         histogram += hist
-
-    # Normalize to get mean histogram density
-    # histogram /= num_non_zero
 
     return histogram

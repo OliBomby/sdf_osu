@@ -2,12 +2,13 @@ import numpy as np
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
 import torch
+import wandb
 from matplotlib import pyplot as plt
 from pytorch_lightning.loggers import WandbLogger
 from torch import nn as nn
 
 from constants import image_shape
-from metrics import circle_accuracy, histogram_plot
+from metrics import circle_accuracy, ds_histogram
 from models import MitUnet
 
 
@@ -22,10 +23,13 @@ class OsuModel(pl.LightningModule):
             self.model = smp.create_model(
                 arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
             )
-        self.test_step_outputs = []
+        self.arch = arch
+        self.encoder_name = encoder_name
         self.loss_fn = nn.CrossEntropyLoss()
         self.lr = lr
         self.save_hyperparameters()
+
+        self.test_ds_histograms = []
 
     def forward(self, image):
         mask = self.model(image)
@@ -58,8 +62,8 @@ class OsuModel(pl.LightningModule):
 
         if stage == "test":
             # Calculate visual spacing distribution
-            histogram = histogram_plot(softmax_pred, batch[0], 0.1, batch[2], max_distance=4, min_value=0.6)
-            result["histogram"] = histogram
+            histogram = ds_histogram(softmax_pred, batch[0], 0.05, batch[2], max_distance=8, min_value=0.6)
+            self.test_ds_histograms.append(histogram)
 
         return result
 
@@ -78,52 +82,39 @@ class OsuModel(pl.LightningModule):
         return self.shared_test_step(batch, "valid", batch_idx)
 
     def test_step(self, batch, batch_idx):
-        output = self.shared_test_step(batch, "test", batch_idx)
-        self.test_step_outputs.append(output)
-        return output
+        return self.shared_test_step(batch, "test", batch_idx)
 
     def on_test_epoch_end(self):
-        outputs = self.test_step_outputs
         # we want to aggregate the histograms. We'll start with the first one and then add each other one to it.
-        aggregated_histogram = np.array(outputs[0]['histogram'])  # start with the first histogram
-
-        for output in outputs[1:]:  # iterate over the rest of the outputs
-            current_histogram = np.array(output['histogram'])
-            aggregated_histogram += current_histogram
+        ds_histogram = np.sum(np.stack(self.test_ds_histograms, axis=0), axis=0)  # start with the first histogram
+        self.test_ds_histograms.clear()
 
         # Normalize the histogram
-        total_count = np.sum(aggregated_histogram)  # sum of all bin counts
+        total_count = np.sum(ds_histogram)  # sum of all bin counts
 
         # To avoid division by zero, check if total_count is zero
         if total_count > 0:
-            normalized_histogram = aggregated_histogram / total_count  # normalize each bin count
-        else:
-            # Here, we'll just create a zero-filled histogram of the same shape.
-            normalized_histogram = np.zeros_like(aggregated_histogram)
+            ds_histogram = ds_histogram / total_count  # normalize each bin count
 
         # WANDB LOGGING
+        if isinstance(self.logger, WandbLogger):
+            # Create a range for the x-axis (bins)
+            xs = np.arange(0, 8, 0.05).tolist()
 
-        # Create a range for the x-axis (bins)
-        xs = list(range(len(normalized_histogram)))
+            # Prepare your data for logging
+            ys = [ds_histogram.tolist()]  # Make sure it's a list of lists
 
-        # Prepare your data for logging
-        ys = [normalized_histogram.tolist()]  # Make sure it's a list of lists
+            # Create a custom wandb plot without directly importing wandb
+            line_plot = wandb.plot.line_series(
+                xs=xs,  # Your x-axis data (bins)
+                ys=ys,  # Your y-axis data (normalized histogram counts)
+                title="Visual spacing distribution",
+                xname="Distance"
+            )
 
-        # Access the underlying wandb run from the logger
-        wandb_run = self.logger.experiment  # This is your wandb run
-
-        # Create a custom wandb plot without directly importing wandb
-        line_plot = wandb_run.plot.line_series(
-            xs=xs,  # Your x-axis data (bins)
-            ys=ys,  # Your y-axis data (normalized histogram counts)
-            keys=["Normalized Histogram"],
-            title="Normalized Histogram over Bins",
-            xname="Bins"
-        )
-
-        # Log the custom plot using the logger's experiment attribute
-        self.logger.experiment.log({"my_custom_id": line_plot})
-
+            # Log the custom plot using the logger's experiment attribute
+            # noinspection PyUnresolvedReferences
+            self.logger.experiment.log({"ds_histogram": line_plot})
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
