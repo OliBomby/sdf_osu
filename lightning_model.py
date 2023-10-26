@@ -62,7 +62,7 @@ class OsuModel(pl.LightningModule):
 
         if stage == "test":
             # Calculate visual spacing distribution
-            histogram = ds_histogram(softmax_pred, batch[0], 0.05, batch[2], max_distance=8, min_value=0.6)
+            histogram = ds_histogram(softmax_pred, batch[0], 0.1, batch[2], max_distance=8, min_value=0.6)
             self.test_ds_histograms.append(histogram)
 
         return result
@@ -99,7 +99,7 @@ class OsuModel(pl.LightningModule):
         # WANDB LOGGING
         if isinstance(self.logger, WandbLogger):
             # Create a range for the x-axis (bins)
-            xs = np.arange(0, 8, 0.05).tolist()
+            xs = np.arange(0, 8, 1).tolist()
 
             # Prepare your data for logging
             ys = [ds_histogram.tolist()]  # Make sure it's a list of lists
@@ -109,7 +109,8 @@ class OsuModel(pl.LightningModule):
                 xs=xs,  # Your x-axis data (bins)
                 ys=ys,  # Your y-axis data (normalized histogram counts)
                 title="Visual spacing distribution",
-                xname="Distance"
+                xname="Distance",
+                keys=["Density"],
             )
 
             # Log the custom plot using the logger's experiment attribute
