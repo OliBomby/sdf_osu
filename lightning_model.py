@@ -99,7 +99,7 @@ class OsuModel(pl.LightningModule):
         # WANDB LOGGING
         if isinstance(self.logger, WandbLogger):
             # Create a range for the x-axis (bins)
-            xs = np.arange(0, 8, 1).tolist()
+            xs = np.arange(0, 8, 0.1).tolist()
 
             # Prepare your data for logging
             ys = [ds_histogram.tolist()]  # Make sure it's a list of lists
