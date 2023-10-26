@@ -39,7 +39,9 @@ class OsuModel(pl.LightningModule):
         logits_mask = self.forward(batch[0])
         pred = torch.flatten(logits_mask, start_dim=1)
         softmax_pred = torch.softmax(pred, dim=1)
+        # softmax_pred = torch.nn.functional.one_hot(batch[1], flat_num).float()
         loss = self.loss_fn(pred, batch[1])
+        # loss = 0
         metric = circle_accuracy(softmax_pred, batch[1])
 
         self.log(stage + "_loss", loss, prog_bar=True)
