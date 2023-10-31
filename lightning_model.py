@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import pytorch_lightning as pl
 import segmentation_models_pytorch as smp
@@ -8,6 +10,8 @@ from pytorch_lightning.loggers import WandbLogger
 from torch import nn as nn
 
 from constants import image_shape
+from lib.models.model_manager import ModelManager
+from lib.utils.tools.configer import Configer
 from metrics import circle_accuracy, ds_histogram
 from models import MitUnet
 
@@ -19,6 +23,27 @@ class OsuModel(pl.LightningModule):
 
         if arch == "Unet" and encoder_name.startswith("mit_") and in_channels != 3:
             self.model = MitUnet(encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs)
+        elif arch.startswith("hrt"):
+            configer = Configer(config_dict={
+                "data": {
+                    "num_classes": 1,
+                },
+                "network": {
+                    "model_name": arch,
+                    "backbone": encoder_name,
+                    "pretrained": None,
+                    "multi_grid": [1, 1, 1],
+                    "bn_type": "torchsyncbn",
+                    "stride": 8,
+                    "factors": [[8, 8]],
+                    "loss_weights": {
+                        "corr_loss": 0.01,
+                        "aux_loss": 0.4,
+                        "seg_loss": 1.0
+                    }
+                },
+            })
+            self.model = ModelManager(configer).semantic_segmentor()
         else:
             self.model = smp.create_model(
                 arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
@@ -33,6 +58,9 @@ class OsuModel(pl.LightningModule):
 
     def forward(self, image):
         mask = self.model(image)
+        if isinstance(mask, Tuple):
+            # Ignore the auxiliary output
+            mask = mask[1]
         return mask
 
     def shared_test_step(self, batch, stage, batch_idx):

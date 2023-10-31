@@ -89,6 +89,7 @@ def main(args):
 
     wandb_logger = WandbLogger(
         project="sdf-osu",
+        name=f"{model.encoder_name} {model.arch} big",
         log_model=False if args.offline else "all",
         offline=args.offline
     )
