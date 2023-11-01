@@ -154,6 +154,7 @@ class ImgBeatmapDatasetIterable:
 
         ho = self.hit_objects[self.ho_index]
         trajectory = torch.reshape(torch.tensor(get_trajectory(ho), dtype=torch.float32), (-1, 3))
+        # Using first trajectory point for label time is very wrong for repeat sliders
         first_p = trajectory[0]
         label = get_coord_index3(ho.position)
 
