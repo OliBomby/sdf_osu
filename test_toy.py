@@ -41,6 +41,7 @@ def get_dataloader(dataset):
     dataloader = DataLoader(
         dataset,
         pin_memory=True,
+        batch_size=1,
     )
 
     return dataloader

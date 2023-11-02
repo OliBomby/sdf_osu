@@ -78,7 +78,7 @@ class OsuModel(pl.LightningModule):
         self.log(stage + test_name + "_circle_accuracy", metric, prog_bar=True)
 
         if isinstance(self.logger, WandbLogger) and batch_idx == 0:
-            num_img = 16
+            num_img = np.min(16, batch[0].shape[0])
             colormap = plt.get_cmap('viridis')
             prior_images = colormap(batch[0][:num_img].squeeze(1).cpu())
             prediction_images = colormap(torch.pow(softmax_pred[:num_img].reshape((-1,) + image_shape), 1/4).cpu())
