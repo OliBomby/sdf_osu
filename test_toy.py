@@ -1,10 +1,15 @@
+import os
+
 import torch
-import torch.nn as nn
-import numpy as np
-from models import UNet3
-from constants import image_shape
-from data_loading_img import geometry_to_sdf, get_timestep_embedding, get_coord_index3
-from plotting import plot_signed_distance_field, plot_prediction
+from pytorch_lightning.loggers import WandbLogger
+import pytorch_lightning as pl
+from slider import Beatmap
+from torch.utils.data import DataLoader
+
+from constants import playfield_height_num, playfield_width_num
+from data_loading import CachedDataset
+from data_loading_img import get_coord_index3, get_trajectory, draw_trajectory, get_hit_object_radius
+from lightning_model import OsuModel
 
 
 def example_from_beatmap(beatmap):
@@ -63,8 +68,8 @@ def main(args):
 
     for test in args.tests:
         test_dataloader = get_dataloader(load_example_folder(test))
+        model.test_name = test
 
-        # TODO: add name of test to metrics
         trainer.test(
             model,
             dataloaders=test_dataloader,
@@ -77,6 +82,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", type=str, required=True)
     parser.add_argument("--offline", type=bool, default=False)
-    parser.add_argument("--tests", type=list[str], default=datasets.keys())
+    parser.add_argument("--tests", type=list[str], default=datasets)
     args = parser.parse_args()
     main(args)

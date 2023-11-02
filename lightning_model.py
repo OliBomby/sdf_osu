@@ -55,6 +55,7 @@ class OsuModel(pl.LightningModule):
         self.save_hyperparameters()
 
         self.test_ds_histograms = []
+        self.test_name = None
 
     def forward(self, image):
         mask = self.model(image)
@@ -72,8 +73,9 @@ class OsuModel(pl.LightningModule):
         # loss = 0
         metric = circle_accuracy(softmax_pred, batch[1])
 
-        self.log(stage + "_loss", loss, prog_bar=True)
-        self.log(stage + "_circle_accuracy", metric, prog_bar=True)
+        test_name = self.test_name + "_" if self.test_name is not None else ""
+        self.log(stage + test_name + "_loss", loss, prog_bar=True)
+        self.log(stage + test_name + "_circle_accuracy", metric, prog_bar=True)
 
         if isinstance(self.logger, WandbLogger) and batch_idx == 0:
             num_img = 16
@@ -83,7 +85,7 @@ class OsuModel(pl.LightningModule):
             combined_images = np.concatenate((prior_images, prediction_images), axis=2)
             split_images = list(np.split(combined_images, num_img, axis=0))
             # noinspection PyUnresolvedReferences
-            self.logger.log_image(key=stage + "_samples", images=split_images)
+            self.logger.log_image(key=stage + test_name + "_samples", images=split_images)
 
         result = {
             "loss": loss,
