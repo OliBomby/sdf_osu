@@ -48,8 +48,10 @@ def get_dataloader(dataset):
 
 
 datasets = [
-    "streams",
-    "triangles",
+    "geometry",
+    "stream",
+    "symmetry",
+    "visual_spacing",
 ]
 
 
