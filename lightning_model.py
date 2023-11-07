@@ -78,7 +78,7 @@ class OsuModel(pl.LightningModule):
         self.log(stage + test_name + "_circle_accuracy", metric, prog_bar=True)
 
         if isinstance(self.logger, WandbLogger) and batch_idx == 0:
-            num_img = np.min(16, batch[0].shape[0])
+            num_img = min(16, batch[0].shape[0])
             colormap = plt.get_cmap('viridis')
             prior_images = colormap(batch[0][:num_img].squeeze(1).cpu())
             prediction_images = colormap(torch.pow(softmax_pred[:num_img].reshape((-1,) + image_shape), 1/4).cpu())
@@ -117,6 +117,9 @@ class OsuModel(pl.LightningModule):
         return self.shared_test_step(batch, "test", batch_idx)
 
     def on_test_epoch_end(self):
+        if len(self.test_ds_histograms) == 0:
+            return
+
         # we want to aggregate the histograms. We'll start with the first one and then add each other one to it.
         ds_histogram = np.sum(np.stack(self.test_ds_histograms, axis=0), axis=0)  # start with the first histogram
         self.test_ds_histograms.clear()
