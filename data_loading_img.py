@@ -56,6 +56,10 @@ def get_coord_index3(pos: Tensor):
     return y_index * playfield_width_num + x_index
 
 
+def coord_index_to_coord(index):
+    return index % playfield_width_num, index // playfield_width_num
+
+
 def trajectory_to_img(trajectory, next_time, look_back_time):
     img = torch.zeros((playfield_height_num, playfield_width_num), dtype=torch.float32)
     return draw_trajectory(img, trajectory, next_time, look_back_time)

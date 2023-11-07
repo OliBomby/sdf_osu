@@ -10,6 +10,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch import nn as nn
 
 from constants import image_shape
+from data_loading_img import coord_index_to_coord
 from lib.models.model_manager import ModelManager
 from lib.utils.tools.configer import Configer
 from metrics import circle_accuracy, ds_histogram
@@ -56,6 +57,7 @@ class OsuModel(pl.LightningModule):
 
         self.test_ds_histograms = []
         self.test_name = None
+        self.log_all_images = False
 
     def forward(self, image):
         mask = self.model(image)
@@ -73,15 +75,18 @@ class OsuModel(pl.LightningModule):
         # loss = 0
         metric = circle_accuracy(softmax_pred, batch[1])
 
-        test_name = self.test_name + "_" if self.test_name is not None else ""
+        test_name = "_" + self.test_name if self.test_name is not None else ""
         self.log(stage + test_name + "_loss", loss, prog_bar=True)
         self.log(stage + test_name + "_circle_accuracy", metric, prog_bar=True)
 
-        if isinstance(self.logger, WandbLogger) and batch_idx == 0:
+        if isinstance(self.logger, WandbLogger) and (batch_idx == 0 or self.log_all_images):
             num_img = min(16, batch[0].shape[0])
             colormap = plt.get_cmap('viridis')
             prior_images = colormap(batch[0][:num_img].squeeze(1).cpu())
             prediction_images = colormap(torch.pow(softmax_pred[:num_img].reshape((-1,) + image_shape), 1/4).cpu())
+            true_x, true_y = coord_index_to_coord(batch[1][:num_img].cpu())
+            prior_images[:, true_y, true_x] = (1, 0, 0, 1)
+            prediction_images[:, true_y, true_x] = (1, 0, 0, 1)
             combined_images = np.concatenate((prior_images, prediction_images), axis=2)
             split_images = list(np.split(combined_images, num_img, axis=0))
             # noinspection PyUnresolvedReferences

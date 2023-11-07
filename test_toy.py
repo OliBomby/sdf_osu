@@ -30,7 +30,8 @@ def example_from_beatmap(beatmap):
 
 def load_example_folder(name):
     data = []
-    for path in os.listdir(os.path.join("toy_datasets", name)):
+    for filename in os.listdir(os.path.join("toy_datasets", name)):
+        path = os.path.join("toy_datasets", name, filename)
         beatmap = Beatmap.from_path(path)
         example = example_from_beatmap(beatmap)
         data.append(example)
@@ -72,6 +73,7 @@ def main(args):
     for test in args.tests:
         test_dataloader = get_dataloader(load_example_folder(test))
         model.test_name = test
+        model.log_all_images = True
 
         trainer.test(
             model,
