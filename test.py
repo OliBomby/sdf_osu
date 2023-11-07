@@ -26,7 +26,7 @@ def main(args):
         test_dataloader = get_img_data_loader(
             dataset_path=args.data_path,
             start=0,
-            end=16291,
+            end=args.data_end,
             look_back_time=5000,
             cycle_length=1,
             batch_size=args.batch_size,
@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-path", type=str, required=True)
+    parser.add_argument("--data-end", type=str, default=16291)
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=0)
