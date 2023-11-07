@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-path", type=str, required=True)
-    parser.add_argument("--data-end", type=str, default=16291)
+    parser.add_argument("--data-end", type=int, default=16291)
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=0)
