@@ -11,7 +11,7 @@ def main(args):
     model = OsuModel.load_from_checkpoint(args.ckpt)
 
     # Load splits
-    _, _, test_split = load_splits(args.splits_dir, args.data_path)
+    _, validation_split, test_split = load_splits(args.splits_dir, args.data_path)
 
     if args.cached_test_data is not None:
         test_dataloader = get_cached_data_loader(
@@ -34,12 +34,14 @@ def main(args):
             shuffle=False,
             pin_memory=True,
             drop_last=True,
-            beatmap_files=test_split,
+            beatmap_files=validation_split if args.validate else test_split,
         )
+
+    test_name = "validation" if args.validate else "test"
 
     wandb_logger = WandbLogger(
         project="sdf-osu",
-        name=f"test {model.encoder_name} {model.arch}",
+        name=f"{test_name} {model.encoder_name} {model.arch}",
         offline=args.offline,
     )
 
@@ -47,10 +49,16 @@ def main(args):
         logger=wandb_logger,
     )
 
-    trainer.test(
-        model,
-        dataloaders=test_dataloader,
-    )
+    if args.validate:
+        trainer.validate(
+            model,
+            dataloaders=test_dataloader,
+        )
+    else:
+        trainer.test(
+            model,
+            dataloaders=test_dataloader,
+        )
 
 
 if __name__ == "__main__":
@@ -66,5 +74,6 @@ if __name__ == "__main__":
     parser.add_argument("--offline", type=bool, default=False)
     parser.add_argument("--splits-dir", type=str, default=None)
     parser.add_argument("--cached-test-data", type=str, default=None)
+    parser.add_argument("--validate", type=bool, default=False)
     args = parser.parse_args()
     main(args)
